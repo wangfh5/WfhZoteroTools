@@ -1,9 +1,9 @@
-# Zotero Show in Finder Plugin
+# WfhZoteroTools
 
 [![zotero target version](https://img.shields.io/badge/Zotero-7-green?style=flat-square&logo=zotero&logoColor=CC2936)](https://www.zotero.org)
 [![Using Zotero Plugin Template](https://img.shields.io/badge/Using-Zotero%20Plugin%20Template-blue?style=flat-square&logo=github)](https://github.com/windingwind/zotero-plugin-template)
 
-A minimal Zotero plugin that adds convenient file operations to the PDF reader's context menu, allowing you to quickly locate files in Finder and copy them to clipboard for sharing.
+WfhZoteroTools is a Zotero plugin that adds convenient file operations to the PDF reader's context menu, allowing you to quickly locate files in Finder and copy them to clipboard for sharing.
 
 ## Features
 

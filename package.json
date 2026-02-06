@@ -1,14 +1,14 @@
 {
-  "name": "zotero-show-in-finder",
+  "name": "wfh-zotero-tools",
   "type": "module",
   "version": "1.0.0",
-  "description": "Add 'Show in Finder' context menu to PDF reader",
+  "description": "A practical toolset for Zotero PDF workflows",
   "config": {
-    "addonName": "Show in Finder",
-    "addonID": "showinFinder@example.com",
-    "addonRef": "showinFinder",
-    "addonInstance": "ShowInFinder",
-    "prefsPrefix": "extensions.zotero.showinFinder"
+    "addonName": "WfhZoteroTools",
+    "addonID": "wfhzoterotools@ssqc",
+    "addonRef": "wfhZoteroTools",
+    "addonInstance": "WfhZoteroTools",
+    "prefsPrefix": "extensions.zotero.wfhZoteroTools"
   },
   "repository": {
     "type": "git",
