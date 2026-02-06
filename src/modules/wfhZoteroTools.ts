@@ -1,4 +1,5 @@
 import { config } from "../../package.json";
+import { getString } from "../utils/locale";
 
 export class WfhZoteroToolsFactory {
   /**
@@ -26,22 +27,22 @@ export class WfhZoteroToolsFactory {
           "WfhZoteroTools: Adding menu item for itemID:",
           reader.itemID,
         );
-        append({
-          label: "Show in Finder",
-          onCommand: async () => {
-            ztoolkit.log("WfhZoteroTools: Menu item clicked");
-            await WfhZoteroToolsFactory.showCurrentPDFInFinder(reader);
+        append(
+          {
+            label: getString("menu-show-in-finder"),
+            onCommand: async () => {
+              ztoolkit.log("WfhZoteroTools: Menu item clicked");
+              await WfhZoteroToolsFactory.showCurrentPDFInFinder(reader);
+            },
           },
-        });
-
-        // Add second menu item for copying file
-        append({
-          label: "Copy File",
-          onCommand: async () => {
-            ztoolkit.log("WfhZoteroTools: Copy File menu item clicked");
-            await WfhZoteroToolsFactory.copyCurrentPDFFile(reader);
+          {
+            label: getString("menu-copy-file"),
+            onCommand: async () => {
+              ztoolkit.log("WfhZoteroTools: Copy File menu item clicked");
+              await WfhZoteroToolsFactory.copyCurrentPDFFile(reader);
+            },
           },
-        });
+        );
       },
       config.addonID,
     );
