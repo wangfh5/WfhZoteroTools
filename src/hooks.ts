@@ -11,8 +11,10 @@ async function onStartup() {
 
   initLocale();
 
-  // Register the Show in Finder context menu
-  WfhZoteroToolsFactory.registerContextMenu();
+  // Register context menus
+  WfhZoteroToolsFactory.registerContextMenu();      // PDF reader right-click
+  WfhZoteroToolsFactory.registerItemContextMenu();   // Library item right-click
+  WfhZoteroToolsFactory.registerChatPDFMenu();        // ChatPDF submenu
 
   await Promise.all(
     Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),
