@@ -2,6 +2,20 @@ const path = require('path');
 const fs = require('fs');
 const { getOrLaunchBrowser } = require('./browser_helper');
 
+// Parse command line arguments
+function parseArgs(argv) {
+  const args = [];
+  let outputFile = null;
+  for (const arg of argv) {
+    if (arg.startsWith('--output=')) {
+      outputFile = arg.substring('--output='.length);
+    } else {
+      args.push(arg);
+    }
+  }
+  return { args, outputFile };
+}
+
 async function waitForGeminiSendButton(page, timeoutMs = 90000) {
   const deadline = Date.now() + timeoutMs;
   const selectors = [
@@ -39,7 +53,7 @@ async function waitForGeminiSendButton(page, timeoutMs = 90000) {
   throw new Error('Timed out waiting for Gemini send button to become enabled.');
 }
 
-async function chatWithGemini(pdfPath, chatName, existingPage) {
+async function chatWithGemini(pdfPath, chatName, existingPage, outputFile = null) {
   if (!pdfPath) {
     console.error('Usage: node gemini_chat_pdf.js <path-to-pdf> [chat-name]');
     process.exit(1);
@@ -96,7 +110,7 @@ async function chatWithGemini(pdfPath, chatName, existingPage) {
     await page.waitForTimeout(500);
 
     console.log('等待发送按钮可点击...');
-    const sendBtn = await waitForGeminiSendButton(page, 90000);
+    const sendBtn = await waitForGeminiSendButton(page, 300000);  // 5 分钟超时
     console.log('发送按钮已就绪，执行发送...');
 
     try {
@@ -141,15 +155,26 @@ async function chatWithGemini(pdfPath, chatName, existingPage) {
 
     console.log('任务完成！');
 
+    // Capture and output URL for plugin to capture
+    const conversationUrl = page.url();
+    const outputData = JSON.stringify({ provider: "gemini", url: conversationUrl });
+    if (outputFile) {
+      fs.writeFileSync(outputFile, outputData);
+    } else {
+      console.log(outputData);
+    }
+    // Let Node.js exit naturally after async functions complete
   } catch (error) {
     console.error('Gemini 脚本执行出错:', error);
+    process.exit(1);
   }
 }
 
 if (require.main === module) {
-  const target = process.argv[2];
-  const chatName = process.argv[3];
-  chatWithGemini(target, chatName);
+  const { args, outputFile } = parseArgs(process.argv.slice(2));
+  const target = args[0];
+  const chatName = args[1];
+  chatWithGemini(target, chatName, null, outputFile);
 }
 
 module.exports = { chatWithGemini };

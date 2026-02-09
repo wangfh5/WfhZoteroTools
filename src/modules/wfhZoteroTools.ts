@@ -328,7 +328,10 @@ export class WfhZoteroToolsFactory {
         "/Users/ssqc/AIGC_Projects/zotero-plugin-wfh/scripts/chatpdf-automation";
       const scriptPath = `${scriptDir}/${scriptName}`;
 
-      const args = [scriptPath, pdfPath];
+      // Generate temp file path for output
+      const tempOutputPath = `/tmp/chatpdf_output_${Date.now()}_${Math.random().toString(36).slice(2, 9)}.json`;
+
+      const args = [scriptPath, pdfPath, `--output=${tempOutputPath}`];
       if (citekey) {
         args.push(`@${citekey}`);
       }
@@ -345,12 +348,82 @@ export class WfhZoteroToolsFactory {
       WfhZoteroToolsFactory.showNotification(notifyMsg, "success");
 
       await Zotero.Utilities.Internal.exec("/opt/homebrew/bin/node", args);
+
+      ztoolkit.log("WfhZoteroTools: Script execution completed, reading temp file:", tempOutputPath);
+
+      // Read and parse output
+      let outputContent = "";
+      try {
+        const tempFile = Zotero.File.pathToFile(tempOutputPath);
+        // Check if file exists
+        if (tempFile.exists()) {
+          ztoolkit.log("WfhZoteroTools: Temp file exists, reading contents...");
+          const content = await Zotero.File.getContentsAsync(tempOutputPath);
+          ztoolkit.log("WfhZoteroTools: File content type:", typeof content);
+          if (typeof content === 'string') {
+            outputContent = content;
+            ztoolkit.log("WfhZoteroTools: Output content:", outputContent);
+          }
+          tempFile.remove(false); // Clean up
+        } else {
+          ztoolkit.log("Temp output file not found:", tempOutputPath);
+        }
+      } catch (e) {
+        ztoolkit.log("Error reading temp output file:", e);
+      }
+
+      ztoolkit.log("WfhZoteroTools: Parsed outputContent length:", outputContent.length);
+
+      // Parse JSON lines and save attachments
+      if (outputContent) {
+        const lines = outputContent.trim().split('\n');
+        ztoolkit.log("WfhZoteroTools: Number of lines:", lines.length);
+        for (const line of lines) {
+          try {
+            ztoolkit.log("WfhZoteroTools: Parsing line:", line);
+            const data = JSON.parse(line);
+            if (data.url) {
+              ztoolkit.log("WfhZoteroTools: Saving attachment for", data.provider, data.url);
+              await WfhZoteroToolsFactory.saveChatPDFAttachment(
+                items[0],
+                data.provider,
+                data.url,
+              );
+            }
+          } catch (e) {
+            ztoolkit.log("Failed to parse JSON line:", line, e);
+          }
+        }
+      } else {
+        ztoolkit.log("WfhZoteroTools: No output content found!");
+      }
     } catch (error) {
       ztoolkit.log("WfhZoteroTools: Error running ChatPDF:", error);
       WfhZoteroToolsFactory.showNotification(
         "Error launching ChatPDF",
         "error",
       );
+    }
+  }
+
+  /**
+   * Save ChatPDF conversation URL as a linked attachment
+   */
+  static async saveChatPDFAttachment(parentItem: Zotero.Item, provider: string, url: string) {
+    ztoolkit.log("WfhZoteroTools: saveChatPDFAttachment called", { parentItemID: parentItem.id, provider, url });
+    try {
+      const title = provider === "chatgpt" ? "Chat with ChatGPT" : "Chat with Gemini";
+      ztoolkit.log("WfhZoteroTools: Calling linkFromURL with:", { url, parentItemID: parentItem.id, title });
+      await Zotero.Attachments.linkFromURL({
+        url: url,
+        parentItemID: parentItem.id,
+        title: title,
+      });
+      ztoolkit.log("WfhZoteroTools: linkFromURL completed successfully");
+      WfhZoteroToolsFactory.showNotification(`Saved ${title} link`, "success");
+    } catch (error) {
+      ztoolkit.log("Error saving ChatPDF attachment:", error);
+      WfhZoteroToolsFactory.showNotification("Failed to save chat link", "error");
     }
   }
 

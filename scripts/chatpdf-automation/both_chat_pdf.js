@@ -4,7 +4,21 @@ const { getOrLaunchBrowser } = require('./browser_helper');
 const { chatWithChatGPT } = require('./chatgpt_chat_pdf');
 const { chatWithGemini } = require('./gemini_chat_pdf');
 
-async function chatWithBoth(pdfPath, chatName) {
+// Parse command line arguments
+function parseArgs(argv) {
+  const args = [];
+  let outputFile = null;
+  for (const arg of argv) {
+    if (arg.startsWith('--output=')) {
+      outputFile = arg.substring('--output='.length);
+    } else {
+      args.push(arg);
+    }
+  }
+  return { args, outputFile };
+}
+
+async function chatWithBoth(pdfPath, chatName, outputFile = null) {
   if (!pdfPath) {
     console.error('Usage: node both_chat_pdf.js <path-to-pdf> [chat-name]');
     process.exit(1);
@@ -25,10 +39,31 @@ async function chatWithBoth(pdfPath, chatName) {
   await defaultPage.close();
 
   console.log('开始并行执行 ChatGPT + Gemini...');
+
+  // Hijack console.log to capture JSON output from each function
+  const capturedUrls = [];
+  const originalLog = console.log;
+  console.log = (...args) => {
+    const logStr = args.join(' ');
+    capturedUrls.push(logStr);
+    originalLog.apply(console, args);
+  };
+
   const results = await Promise.allSettled([
-    chatWithChatGPT(absolutePdfPath, chatName, chatgptPage),
-    chatWithGemini(absolutePdfPath, chatName, geminiPage),
+    chatWithChatGPT(absolutePdfPath, chatName, chatgptPage, null),
+    chatWithGemini(absolutePdfPath, chatName, geminiPage, null),
   ]);
+
+  // Restore original console.log
+  console.log = originalLog;
+
+  // Write captured output to file if needed
+  if (outputFile) {
+    const outputLines = capturedUrls.filter(line => line.startsWith('{'));
+    if (outputLines.length > 0) {
+      fs.writeFileSync(outputFile, outputLines.join('\n'));
+    }
+  }
 
   for (const [i, result] of results.entries()) {
     const provider = i === 0 ? 'ChatGPT' : 'Gemini';
@@ -40,12 +75,14 @@ async function chatWithBoth(pdfPath, chatName) {
   }
 
   console.log('并行任务全部结束。');
+  // Let Node.js exit naturally after async functions complete
 }
 
 if (require.main === module) {
-  const target = process.argv[2];
-  const chatName = process.argv[3];
-  chatWithBoth(target, chatName);
+  const { args, outputFile } = parseArgs(process.argv.slice(2));
+  const target = args[0];
+  const chatName = args[1];
+  chatWithBoth(target, chatName, outputFile);
 }
 
 module.exports = { chatWithBoth };

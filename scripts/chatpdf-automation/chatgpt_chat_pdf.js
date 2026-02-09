@@ -2,6 +2,20 @@ const path = require('path');
 const fs = require('fs');
 const { getOrLaunchBrowser } = require('./browser_helper');
 
+// Parse command line arguments
+function parseArgs(argv) {
+  const args = [];
+  let outputFile = null;
+  for (const arg of argv) {
+    if (arg.startsWith('--output=')) {
+      outputFile = arg.substring('--output='.length);
+    } else {
+      args.push(arg);
+    }
+  }
+  return { args, outputFile };
+}
+
 const PINNED_CHAT_COUNT_FALLBACK = Math.max(
   0,
   Number.parseInt(process.env.CHATGPT_PINNED_COUNT || '2', 10) || 0,
@@ -280,7 +294,7 @@ async function openRenameMenuForCurrentChat(page) {
   }
 }
 
-async function chatWithChatGPT(pdfPath, chatName, existingPage) {
+async function chatWithChatGPT(pdfPath, chatName, existingPage, outputFile = null) {
   if (!pdfPath) {
     console.error('Usage: node chatgpt_chat_pdf.js <path-to-pdf> [chat-name]');
     process.exit(1);
@@ -334,7 +348,7 @@ async function chatWithChatGPT(pdfPath, chatName, existingPage) {
     await page.waitForTimeout(300);
 
     console.log('等待发送按钮可点击...');
-    const sendBtn = await waitForChatGPTSendButton(page, 90000);
+    const sendBtn = await waitForChatGPTSendButton(page, 300000);  // 5 分钟超时
     console.log('发送按钮已就绪，执行发送...');
     try {
       await sendBtn.click({ timeout: 5000 });
@@ -345,7 +359,7 @@ async function chatWithChatGPT(pdfPath, chatName, existingPage) {
 
     // 4. 等待首轮回答完成后，再重命名侧边栏第一项
     console.log('等待首轮回答生成完成...');
-    await waitForChatGPTResponseFinished(page, 180000);
+    await waitForChatGPTResponseFinished(page, 600000);  // 10 分钟超时
     await page.waitForTimeout(1200);
     const activeConversationUrl = page.url();
     console.log(`回答完成后的会话 URL: ${activeConversationUrl}`);
@@ -398,15 +412,25 @@ async function chatWithChatGPT(pdfPath, chatName, existingPage) {
 
     console.log('流程结束。');
 
+    // Output URL for plugin to capture
+    const outputData = JSON.stringify({ provider: "chatgpt", url: activeConversationUrl });
+    if (outputFile) {
+      fs.writeFileSync(outputFile, outputData);
+    } else {
+      console.log(outputData);
+    }
+    // Let Node.js exit naturally after async functions complete
   } catch (error) {
     console.error('脚本出错:', error);
+    process.exit(1);
   }
 }
 
 if (require.main === module) {
-  const target = process.argv[2];
-  const chatName = process.argv[3];
-  chatWithChatGPT(target, chatName);
+  const { args, outputFile } = parseArgs(process.argv.slice(2));
+  const target = args[0];
+  const chatName = args[1];
+  chatWithChatGPT(target, chatName, null, outputFile);
 }
 
 module.exports = { chatWithChatGPT };
