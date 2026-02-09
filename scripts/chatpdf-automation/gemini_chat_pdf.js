@@ -140,7 +140,6 @@ async function chatWithGemini(pdfPath, chatName, existingPage) {
     }
 
     console.log('任务完成！');
-    await page.screenshot({ path: `gemini_best_practice_${Date.now()}.png` });
 
   } catch (error) {
     console.error('Gemini 脚本执行出错:', error);

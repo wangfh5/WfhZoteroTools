@@ -2,43 +2,10 @@ const path = require('path');
 const fs = require('fs');
 const { getOrLaunchBrowser } = require('./browser_helper');
 
-const ARTIFACT_DIR = path.join(__dirname, 'artifacts');
-if (!fs.existsSync(ARTIFACT_DIR)) {
-  fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
-}
-const LOG_FILE = path.join(ARTIFACT_DIR, 'chatgpt_automation.log');
 const PINNED_CHAT_COUNT_FALLBACK = Math.max(
   0,
   Number.parseInt(process.env.CHATGPT_PINNED_COUNT || '2', 10) || 0,
 );
-
-function writeLog(level, ...args) {
-  const timestamp = new Date().toISOString();
-  const formatted = args.map((v) => {
-    if (v instanceof Error) {
-      return `${v.name}: ${v.message}${v.stack ? `\n${v.stack}` : ''}`;
-    }
-    if (typeof v === 'string') return v;
-    try {
-      return JSON.stringify(v);
-    } catch {
-      return String(v);
-    }
-  });
-  const safeLine = `[${timestamp}] [${level}] ${formatted.join(' ')}\n`;
-  fs.appendFileSync(LOG_FILE, safeLine, 'utf8');
-}
-
-const rawConsoleLog = console.log.bind(console);
-const rawConsoleError = console.error.bind(console);
-console.log = (...args) => {
-  writeLog('INFO', ...args);
-  rawConsoleLog(...args);
-};
-console.error = (...args) => {
-  writeLog('ERROR', ...args);
-  rawConsoleError(...args);
-};
 
 async function waitForChatGPTSendButton(page, timeoutMs = 90000) {
   const deadline = Date.now() + timeoutMs;
@@ -385,9 +352,6 @@ async function chatWithChatGPT(pdfPath, chatName, existingPage) {
 
     try {
         console.log('准备重命名当前对话...');
-        // await page.screenshot({
-        //   path: path.join(ARTIFACT_DIR, `chatgpt_before_rename_${Date.now()}.png`),
-        // });
         await openRenameMenuForCurrentChat(page);
         await page.waitForTimeout(400);
 
@@ -424,9 +388,6 @@ async function chatWithChatGPT(pdfPath, chatName, existingPage) {
         console.log(`✅ 重命名成功: ${newName}`);
     } catch (e) {
         console.log('重命名失败，可能需要手动调整。详情:', e.message);
-        await page.screenshot({
-          path: path.join(ARTIFACT_DIR, `chatgpt_rename_failed_${Date.now()}.png`),
-        });
     }
 
     if (/\/c\//.test(activeConversationUrl) && page.url() !== activeConversationUrl) {
@@ -436,9 +397,6 @@ async function chatWithChatGPT(pdfPath, chatName, existingPage) {
     }
 
     console.log('流程结束。');
-    // await page.screenshot({
-    //   path: path.join(ARTIFACT_DIR, `chatgpt_final_record_${Date.now()}.png`),
-    // });
 
   } catch (error) {
     console.error('脚本出错:', error);
