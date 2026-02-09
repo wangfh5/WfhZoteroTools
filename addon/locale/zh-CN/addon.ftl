@@ -15,3 +15,4 @@ tabpanel-reader-tab-label = 阅读器标签
 menu-chatpdf = AI 阅读 PDF
 menu-chatpdf-chatgpt = ChatGPT
 menu-chatpdf-gemini = Gemini
+menu-chatpdf-both = 同时运行

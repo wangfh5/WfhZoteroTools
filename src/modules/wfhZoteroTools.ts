@@ -297,7 +297,7 @@ export class WfhZoteroToolsFactory {
   /**
    * Launch chatpdf-automation script for the selected item
    */
-  static async runChatPDF(provider: "chatgpt" | "gemini") {
+  static async runChatPDF(provider: "chatgpt" | "gemini" | "both") {
     try {
       const zp = Zotero.getActiveZoteroPane();
       const items = zp.getSelectedItems();
@@ -318,10 +318,12 @@ export class WfhZoteroToolsFactory {
       }
 
       const { citekey, pdfPath } = result;
-      const scriptName =
-        provider === "chatgpt"
-          ? "chatgpt_chat_pdf.js"
-          : "gemini_chat_pdf.js";
+      const scriptNames: Record<string, string> = {
+        chatgpt: "chatgpt_chat_pdf.js",
+        gemini: "gemini_chat_pdf.js",
+        both: "both_chat_pdf.js",
+      };
+      const scriptName = scriptNames[provider];
       const scriptDir =
         "/Users/ssqc/AIGC_Projects/zotero-plugin-wfh/scripts/chatpdf-automation";
       const scriptPath = `${scriptDir}/${scriptName}`;
@@ -336,10 +338,11 @@ export class WfhZoteroToolsFactory {
         args,
       );
 
-      WfhZoteroToolsFactory.showNotification(
-        `Launching ${provider}...`,
-        "success",
-      );
+      const notifyMsg =
+        provider === "both"
+          ? "Launching ChatGPT + Gemini..."
+          : `Launching ${provider}...`;
+      WfhZoteroToolsFactory.showNotification(notifyMsg, "success");
 
       await Zotero.Utilities.Internal.exec("/opt/homebrew/bin/node", args);
     } catch (error) {
@@ -376,6 +379,14 @@ export class WfhZoteroToolsFactory {
           label: getString("menu-chatpdf-gemini"),
           commandListener: async () => {
             await WfhZoteroToolsFactory.runChatPDF("gemini");
+          },
+        },
+        {
+          tag: "menuitem",
+          id: "zotero-itemmenu-wfh-chatpdf-both",
+          label: getString("menu-chatpdf-both"),
+          commandListener: async () => {
+            await WfhZoteroToolsFactory.runChatPDF("both");
           },
         },
       ],

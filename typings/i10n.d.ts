@@ -10,6 +10,7 @@ export type FluentMessageId =
   | 'item-section-example2-head-text'
   | 'item-section-example2-sidenav-tooltip'
   | 'menu-chatpdf'
+  | 'menu-chatpdf-both'
   | 'menu-chatpdf-chatgpt'
   | 'menu-chatpdf-gemini'
   | 'menu-copy-file'

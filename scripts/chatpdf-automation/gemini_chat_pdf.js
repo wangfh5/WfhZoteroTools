@@ -39,7 +39,7 @@ async function waitForGeminiSendButton(page, timeoutMs = 90000) {
   throw new Error('Timed out waiting for Gemini send button to become enabled.');
 }
 
-async function chatWithGemini(pdfPath, chatName) {
+async function chatWithGemini(pdfPath, chatName, existingPage) {
   if (!pdfPath) {
     console.error('Usage: node gemini_chat_pdf.js <path-to-pdf> [chat-name]');
     process.exit(1);
@@ -59,7 +59,7 @@ async function chatWithGemini(pdfPath, chatName) {
   const promptText = fs.readFileSync(promptFilePath, 'utf-8').trim();
 
   console.log('正在启动浏览器 (Gemini)...');
-  const { page } = await getOrLaunchBrowser();
+  const page = existingPage || (await getOrLaunchBrowser()).page;
 
   try {
     console.log('正在访问 Gemini...');
@@ -147,6 +147,10 @@ async function chatWithGemini(pdfPath, chatName) {
   }
 }
 
-const target = process.argv[2];
-const chatName = process.argv[3];
-chatWithGemini(target, chatName);
+if (require.main === module) {
+  const target = process.argv[2];
+  const chatName = process.argv[3];
+  chatWithGemini(target, chatName);
+}
+
+module.exports = { chatWithGemini };

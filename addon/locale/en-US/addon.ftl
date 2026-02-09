@@ -15,3 +15,4 @@ tabpanel-reader-tab-label = Reader Tab
 menu-chatpdf = Chat with PDF
 menu-chatpdf-chatgpt = ChatGPT
 menu-chatpdf-gemini = Gemini
+menu-chatpdf-both = Both (Parallel)

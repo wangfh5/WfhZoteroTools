@@ -1,8 +1,27 @@
 const { chromium } = require('playwright');
+const { execSync } = require('child_process');
 
 const CDP_PORT = 9222;
 const CDP_URL = `http://localhost:${CDP_PORT}`;
 const SHARED_PROFILE = '/Users/ssqc/Library/Caches/ms-playwright/daemon/chatpdf-shared-profile';
+
+function activateZotero() {
+  try {
+    execSync('osascript -e \'tell application "Zotero" to activate\'');
+  } catch {
+    // ignore
+  }
+}
+
+// Chrome steals focus multiple times during launch (window render, first page load, etc.)
+// especially under Stage Manager. Retry several times to fight back.
+function refocusZotero() {
+  const delays = [300, 800, 1500, 3000];
+  for (const ms of delays) {
+    setTimeout(activateZotero, ms);
+  }
+  return new Promise((resolve) => setTimeout(resolve, delays[delays.length - 1] + 200));
+}
 
 async function getOrLaunchBrowser() {
   try {
@@ -32,6 +51,7 @@ async function getOrLaunchBrowser() {
     const existingPages = context.pages();
     const page = existingPages.length > 0 ? existingPages[0] : await context.newPage();
     console.log('新浏览器已启动。');
+    await refocusZotero();
     return { browser: null, context, page };
   }
 }
