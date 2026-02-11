@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const { getOrLaunchBrowser } = require('./browser_helper');
+const { getOrLaunchBrowser, disconnectAndExit } = require('./browser_helper');
 
 // Parse command line arguments
 function parseArgs(argv) {
@@ -325,17 +325,17 @@ async function chatWithChatGPT(pdfPath, chatName, existingPage, outputFile = nul
     await page.waitForSelector('[data-testid="composer-plus-btn"]');
     const modelBtn = page.getByTestId('model-switcher-dropdown-button');
     if (!(await modelBtn.innerText()).includes('Thinking')) {
-        await modelBtn.click();
-        await page.getByRole('menuitem', { name: /Thinking/i }).click();
-        await page.waitForTimeout(1000);
+      await modelBtn.click();
+      await page.getByRole('menuitem', { name: /Thinking/i }).click();
+      await page.waitForTimeout(1000);
     }
 
     // 2. 上传文件
     console.log('正在上传文件...');
     await page.getByTestId('composer-plus-btn').click();
     const [fileChooser] = await Promise.all([
-        page.waitForEvent('filechooser'),
-        page.getByRole('menuitem', { name: /Add photos & files/i }).click(),
+      page.waitForEvent('filechooser'),
+      page.getByRole('menuitem', { name: /Add photos & files/i }).click(),
     ]);
     await fileChooser.setFiles(absolutePdfPath);
     await page.waitForTimeout(3000);
@@ -365,43 +365,43 @@ async function chatWithChatGPT(pdfPath, chatName, existingPage, outputFile = nul
     console.log(`回答完成后的会话 URL: ${activeConversationUrl}`);
 
     try {
-        console.log('准备重命名当前对话...');
-        await openRenameMenuForCurrentChat(page);
-        await page.waitForTimeout(400);
+      console.log('准备重命名当前对话...');
+      await openRenameMenuForCurrentChat(page);
+      await page.waitForTimeout(400);
 
-        const renameBtn = page.getByRole('menuitem', { name: /Rename|重命名/i }).first();
-        await renameBtn.waitFor({ state: 'visible', timeout: 5000 });
-        console.log(`点击 Rename 前 URL: ${page.url()}`);
-        await renameBtn.click({ force: true });
-        console.log(`点击 Rename 后 URL: ${page.url()}`);
-        await page.waitForTimeout(300);
+      const renameBtn = page.getByRole('menuitem', { name: /Rename|重命名/i }).first();
+      await renameBtn.waitFor({ state: 'visible', timeout: 5000 });
+      console.log(`点击 Rename 前 URL: ${page.url()}`);
+      await renameBtn.click({ force: true });
+      console.log(`点击 Rename 后 URL: ${page.url()}`);
+      await page.waitForTimeout(300);
 
-        const newName = chatName || path.basename(absolutePdfPath, path.extname(absolutePdfPath));
-        console.log(`正在写入新名称: ${newName}`);
+      const newName = chatName || path.basename(absolutePdfPath, path.extname(absolutePdfPath));
+      console.log(`正在写入新名称: ${newName}`);
 
-        const renameInput = page.locator(
-          'input[aria-label*="Rename"], input[placeholder*="Rename"], [role="dialog"] input, nav input',
-        ).first();
-        console.log(`rename input count: ${await renameInput.count()}`);
-        await renameInput.waitFor({ state: 'visible', timeout: 5000 });
-        await renameInput.click({ force: true });
-        await renameInput.fill('');
-        await renameInput.fill(newName);
-        await page.waitForTimeout(200);
+      const renameInput = page.locator(
+        'input[aria-label*="Rename"], input[placeholder*="Rename"], [role="dialog"] input, nav input',
+      ).first();
+      console.log(`rename input count: ${await renameInput.count()}`);
+      await renameInput.waitFor({ state: 'visible', timeout: 5000 });
+      await renameInput.click({ force: true });
+      await renameInput.fill('');
+      await renameInput.fill(newName);
+      await page.waitForTimeout(200);
 
-        const confirmBtn = page
-          .locator('[role="dialog"] button')
-          .filter({ hasText: /保存|Save|重命名|Rename/i })
-          .first();
-        if ((await confirmBtn.count()) > 0) {
-          await confirmBtn.click({ force: true });
-        } else {
-          await renameInput.press('Enter');
-        }
-        
-        console.log(`✅ 重命名成功: ${newName}`);
+      const confirmBtn = page
+        .locator('[role="dialog"] button')
+        .filter({ hasText: /保存|Save|重命名|Rename/i })
+        .first();
+      if ((await confirmBtn.count()) > 0) {
+        await confirmBtn.click({ force: true });
+      } else {
+        await renameInput.press('Enter');
+      }
+
+      console.log(`✅ 重命名成功: ${newName}`);
     } catch (e) {
-        console.log('重命名失败，可能需要手动调整。详情:', e.message);
+      console.log('重命名失败，可能需要手动调整。详情:', e.message);
     }
 
     if (/\/c\//.test(activeConversationUrl) && page.url() !== activeConversationUrl) {
@@ -419,10 +419,9 @@ async function chatWithChatGPT(pdfPath, chatName, existingPage, outputFile = nul
     } else {
       console.log(outputData);
     }
-    // Let Node.js exit naturally after async functions complete
   } catch (error) {
     console.error('脚本出错:', error);
-    process.exit(1);
+    throw error;
   }
 }
 
@@ -430,7 +429,9 @@ if (require.main === module) {
   const { args, outputFile } = parseArgs(process.argv.slice(2));
   const target = args[0];
   const chatName = args[1];
-  chatWithChatGPT(target, chatName, null, outputFile);
+  chatWithChatGPT(target, chatName, null, outputFile)
+    .then(() => disconnectAndExit(0))
+    .catch(() => disconnectAndExit(1));
 }
 
 module.exports = { chatWithChatGPT };

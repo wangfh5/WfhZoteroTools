@@ -16,3 +16,5 @@ build
 logs
 
 chatgpt_automation.log
+.playwright-cli/
+.cursor/

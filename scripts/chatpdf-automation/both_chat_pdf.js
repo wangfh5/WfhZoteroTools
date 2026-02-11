@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const { getOrLaunchBrowser } = require('./browser_helper');
+const { getOrLaunchBrowser, disconnectAndExit } = require('./browser_helper');
 const { chatWithChatGPT } = require('./chatgpt_chat_pdf');
 const { chatWithGemini } = require('./gemini_chat_pdf');
 
@@ -75,7 +75,7 @@ async function chatWithBoth(pdfPath, chatName, outputFile = null) {
   }
 
   console.log('并行任务全部结束。');
-  // Let Node.js exit naturally after async functions complete
+  await disconnectAndExit(0);
 }
 
 if (require.main === module) {
