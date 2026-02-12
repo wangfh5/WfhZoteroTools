@@ -4,13 +4,13 @@
 
 ## 脚本说明
 
-| 脚本 | 用途 |
-|------|------|
-| `chatgpt_chat_pdf.js` | ChatGPT 自动化 |
-| `gemini_chat_pdf.js` | Gemini 自动化 |
-| `both_chat_pdf.js` | 并行运行 ChatGPT + Gemini |
-| `browser_helper.js` | 浏览器管理辅助函数 |
-| `browser_daemon.js` | 浏览器守护进程（保持浏览器在脚本退出后继续运行） |
+| 脚本                  | 用途                                             |
+| --------------------- | ------------------------------------------------ |
+| `chatgpt_chat_pdf.js` | ChatGPT 自动化                                   |
+| `gemini_chat_pdf.js`  | Gemini 自动化                                    |
+| `both_chat_pdf.js`    | 并行运行 ChatGPT + Gemini                        |
+| `browser_helper.js`   | 浏览器管理辅助函数                               |
+| `browser_daemon.js`   | 浏览器守护进程（保持浏览器在脚本退出后继续运行） |
 
 ## 使用方法
 
@@ -56,4 +56,5 @@ Zotero 插件模块会读取该文件, 并将 URL 保存为链接类型附件（
 基于Playwright-CLI的浏览器自动化脚本的开发方法论：[BROWSER-AUTOMATION-GUIDE.md](./BROWSER-AUTOMATION-GUIDE.md)
 
 ## 开发文档
+
 - `doc/Browser-Daemon.md`: 浏览器守护进程的实现细节

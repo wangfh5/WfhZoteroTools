@@ -17,4 +17,7 @@ logs
 
 chatgpt_automation.log
 .playwright-cli/
-.cursor/
+
+# Cursor
+.cursor/.hook-state/
+.cursor/settings.local.json

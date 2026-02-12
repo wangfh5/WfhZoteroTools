@@ -55,19 +55,21 @@
 ### 1. browser_daemon.js (新建)
 
 **职责**：
+
 - 使用 `launchPersistentContext` 启动浏览器
 - 在端口 9222 提供 CDP 服务
 - 保持进程运行（`setInterval` + `context.on('close')`）
 - 用户关闭浏览器窗口时自动退出
 
 **关键代码**：
+
 ```javascript
 const context = await chromium.launchPersistentContext(SHARED_PROFILE, {
   args: [`--remote-debugging-port=${CDP_PORT}`],
   // ... 其他配置
 });
 
-context.on('close', () => {
+context.on("close", () => {
   process.exit(0);
 });
 
@@ -77,10 +79,12 @@ setInterval(() => {}, 60000); // Keep alive
 ### 2. browser_helper.js (修改)
 
 **新增功能**：
+
 - `checkCDPAvailable()`: HTTP GET 检查 CDP 端口是否就绪
 - `waitForCDP(maxWaitMs)`: 轮询等待 CDP 就绪（默认 30 秒）
 
 **修改逻辑**：
+
 ```javascript
 async function getOrLaunchBrowser() {
   try {
@@ -88,15 +92,15 @@ async function getOrLaunchBrowser() {
     return await chromium.connectOverCDP(CDP_URL);
   } catch {
     // 2. 启动守护进程（detached + unref）
-    const daemonProcess = spawn('node', [daemonScript], {
+    const daemonProcess = spawn("node", [daemonScript], {
       detached: true,
-      stdio: 'ignore',
+      stdio: "ignore",
     });
     daemonProcess.unref();
-    
+
     // 3. 等待 CDP 就绪
     await waitForCDP(30000);
-    
+
     // 4. 连接守护进程的浏览器
     return await chromium.connectOverCDP(CDP_URL);
   }
@@ -104,6 +108,7 @@ async function getOrLaunchBrowser() {
 ```
 
 **关键点**：
+
 - `detached: true` - 守护进程独立于父进程运行
 - `stdio: 'ignore'` - 不继承 stdio，避免父进程等待
 - `unref()` - 允许父进程独立退出
@@ -144,6 +149,7 @@ Context has 3 pages
 ### 测试 3：URL 保存机制
 
 **验证点**：
+
 - 脚本通过 `fs.writeFileSync` 写入临时文件 **在** `process.exit()` 之前
 - 插件的 `await exec()` 等待脚本退出后才读取临时文件
 - 守护进程模式不改变这个流程
@@ -153,11 +159,13 @@ Context has 3 pages
 ## 用户体验改进
 
 **之前**：
+
 - ❌ 脚本完成后浏览器被关闭
 - ❌ 无法继续查看聊天记录
 - ❌ 每次运行都启动新浏览器
 
 **现在**：
+
 - ✅ 脚本完成后浏览器保持打开
 - ✅ 可以继续查看和使用聊天记录
 - ✅ 多次运行复用同一浏览器实例，启动更快
@@ -175,14 +183,17 @@ Context has 3 pages
 ## 潜在问题与解决
 
 **问题 1**：守护进程一直运行，占用资源？
+
 - **解决**：监听 `context.on('close')`，用户关闭窗口即退出
 - **补充**：可通过 `ps aux | grep browser_daemon` 查看，`pkill -f browser_daemon` 强制清理
 
 **问题 2**：多个脚本同时运行？
+
 - **解决**：所有脚本都先尝试连接 9222，只有第一个脚本会启动守护进程
 - **结果**：多个脚本共享同一浏览器实例（不同 tab）
 
 **问题 3**：CDP 端口被占用？
+
 - **现象**：`waitForCDP` 会超时失败
 - **解决**：检查是否有其他 Chrome 使用 9222 端口，手动清理
 

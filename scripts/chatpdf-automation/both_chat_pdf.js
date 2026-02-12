@@ -1,16 +1,16 @@
-const path = require('path');
-const fs = require('fs');
-const { getOrLaunchBrowser, disconnectAndExit } = require('./browser_helper');
-const { chatWithChatGPT } = require('./chatgpt_chat_pdf');
-const { chatWithGemini } = require('./gemini_chat_pdf');
+const path = require("path");
+const fs = require("fs");
+const { getOrLaunchBrowser, disconnectAndExit } = require("./browser_helper");
+const { chatWithChatGPT } = require("./chatgpt_chat_pdf");
+const { chatWithGemini } = require("./gemini_chat_pdf");
 
 // Parse command line arguments
 function parseArgs(argv) {
   const args = [];
   let outputFile = null;
   for (const arg of argv) {
-    if (arg.startsWith('--output=')) {
-      outputFile = arg.substring('--output='.length);
+    if (arg.startsWith("--output=")) {
+      outputFile = arg.substring("--output=".length);
     } else {
       args.push(arg);
     }
@@ -20,7 +20,7 @@ function parseArgs(argv) {
 
 async function chatWithBoth(pdfPath, chatName, outputFile = null) {
   if (!pdfPath) {
-    console.error('Usage: node both_chat_pdf.js <path-to-pdf> [chat-name]');
+    console.error("Usage: node both_chat_pdf.js <path-to-pdf> [chat-name]");
     process.exit(1);
   }
 
@@ -30,7 +30,7 @@ async function chatWithBoth(pdfPath, chatName, outputFile = null) {
     process.exit(1);
   }
 
-  console.log('正在启动浏览器 (Both)...');
+  console.log("正在启动浏览器 (Both)...");
   const { context, page: defaultPage } = await getOrLaunchBrowser();
 
   // Close the default page and create two fresh pages
@@ -38,13 +38,13 @@ async function chatWithBoth(pdfPath, chatName, outputFile = null) {
   const geminiPage = await context.newPage();
   await defaultPage.close();
 
-  console.log('开始并行执行 ChatGPT + Gemini...');
+  console.log("开始并行执行 ChatGPT + Gemini...");
 
   // Hijack console.log to capture JSON output from each function
   const capturedUrls = [];
   const originalLog = console.log;
   console.log = (...args) => {
-    const logStr = args.join(' ');
+    const logStr = args.join(" ");
     capturedUrls.push(logStr);
     originalLog.apply(console, args);
   };
@@ -59,22 +59,22 @@ async function chatWithBoth(pdfPath, chatName, outputFile = null) {
 
   // Write captured output to file if needed
   if (outputFile) {
-    const outputLines = capturedUrls.filter(line => line.startsWith('{'));
+    const outputLines = capturedUrls.filter((line) => line.startsWith("{"));
     if (outputLines.length > 0) {
-      fs.writeFileSync(outputFile, outputLines.join('\n'));
+      fs.writeFileSync(outputFile, outputLines.join("\n"));
     }
   }
 
   for (const [i, result] of results.entries()) {
-    const provider = i === 0 ? 'ChatGPT' : 'Gemini';
-    if (result.status === 'fulfilled') {
+    const provider = i === 0 ? "ChatGPT" : "Gemini";
+    if (result.status === "fulfilled") {
       console.log(`✅ ${provider} 完成。`);
     } else {
       console.error(`❌ ${provider} 失败:`, result.reason);
     }
   }
 
-  console.log('并行任务全部结束。');
+  console.log("并行任务全部结束。");
   await disconnectAndExit(0);
 }
 

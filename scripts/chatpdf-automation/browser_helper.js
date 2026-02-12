@@ -1,21 +1,14 @@
-const { chromium } = require('playwright');
-const { execSync, spawn } = require('child_process');
-const path = require('path');
-const os = require('os');
-const http = require('http');
+const { chromium } = require("playwright");
+const { execSync, spawn } = require("child_process");
+const path = require("path");
+const http = require("http");
 
 const CDP_PORT = 9222;
 const CDP_URL = `http://localhost:${CDP_PORT}`;
 
-// Derive browser profile path from user home directory (cross-platform)
-const SHARED_PROFILE = path.join(
-  os.homedir(),
-  'Library', 'Caches', 'ms-playwright', 'daemon', 'chatpdf-shared-profile',
-);
-
 function activateZotero() {
   try {
-    execSync('osascript -e \'tell application "Zotero" to activate\'');
+    execSync("osascript -e 'tell application \"Zotero\" to activate'");
   } catch {
     // ignore
   }
@@ -29,7 +22,7 @@ function checkCDPAvailable() {
     const req = http.get(`${CDP_URL}/json/version`, (res) => {
       resolve(res.statusCode === 200);
     });
-    req.on('error', () => {
+    req.on("error", () => {
       resolve(false);
     });
     req.setTimeout(1000, () => {
@@ -47,14 +40,14 @@ function checkCDPAvailable() {
 async function waitForCDP(maxWaitMs = 30000) {
   const startTime = Date.now();
   const pollInterval = 500;
-  
+
   while (Date.now() - startTime < maxWaitMs) {
     if (await checkCDPAvailable()) {
       return true;
     }
     await new Promise((resolve) => setTimeout(resolve, pollInterval));
   }
-  
+
   return false;
 }
 
@@ -65,7 +58,9 @@ function refocusZotero() {
   for (const ms of delays) {
     setTimeout(activateZotero, ms);
   }
-  return new Promise((resolve) => setTimeout(resolve, delays[delays.length - 1] + 200));
+  return new Promise((resolve) =>
+    setTimeout(resolve, delays[delays.length - 1] + 200),
+  );
 }
 
 /**
@@ -76,53 +71,53 @@ function refocusZotero() {
  */
 async function getOrCreatePage(context) {
   const existingPages = context.pages();
-  const blankPage = existingPages.find(p => p.url() === 'about:blank');
-  return blankPage || await context.newPage();
+  const blankPage = existingPages.find((p) => p.url() === "about:blank");
+  return blankPage || (await context.newPage());
 }
 
 async function getOrLaunchBrowser() {
   try {
     // 尝试连接已运行的浏览器
-    console.log('尝试连接已有浏览器...');
+    console.log("尝试连接已有浏览器...");
     const browser = await chromium.connectOverCDP(CDP_URL);
     const context = browser.contexts()[0];
     const page = await getOrCreatePage(context);
-    console.log('已连接到现有浏览器，打开新 Tab。');
+    console.log("已连接到现有浏览器，打开新 Tab。");
     return { browser, context, page };
   } catch {
     // 无浏览器运行，启动守护进程
-    console.log('未找到已有浏览器，启动守护进程...');
-    
-    const daemonScript = path.join(__dirname, 'browser_daemon.js');
+    console.log("未找到已有浏览器，启动守护进程...");
+
+    const daemonScript = path.join(__dirname, "browser_daemon.js");
     // Use process.execPath (absolute path to current node binary) instead of
     // bare 'node', because Zotero's exec environment has a minimal PATH that
     // typically doesn't include /opt/homebrew/bin or /usr/local/bin.
     const daemonProcess = spawn(process.execPath, [daemonScript], {
       detached: true,
-      stdio: 'ignore',
+      stdio: "ignore",
     });
-    
+
     // Unref to allow parent process to exit independently
     daemonProcess.unref();
-    
-    console.log('守护进程已启动，等待浏览器就绪...');
-    
+
+    console.log("守护进程已启动，等待浏览器就绪...");
+
     // Wait for CDP to become available
     const isReady = await waitForCDP(30000);
     if (!isReady) {
-      throw new Error('Timeout waiting for browser daemon to start');
+      throw new Error("Timeout waiting for browser daemon to start");
     }
-    
-    console.log('浏览器就绪，正在连接...');
-    
+
+    console.log("浏览器就绪，正在连接...");
+
     // Connect to the browser launched by daemon
     const browser = await chromium.connectOverCDP(CDP_URL);
     const context = browser.contexts()[0];
     const page = await getOrCreatePage(context);
-    
-    console.log('已连接到守护进程浏览器。');
+
+    console.log("已连接到守护进程浏览器。");
     await refocusZotero();
-    
+
     return { browser, context, page };
   }
 }

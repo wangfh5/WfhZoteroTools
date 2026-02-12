@@ -20,9 +20,9 @@ async function onStartup() {
   });
 
   // Register context menus
-  WfhZoteroToolsFactory.registerContextMenu();      // PDF reader right-click
-  WfhZoteroToolsFactory.registerItemContextMenu();   // Library item right-click
-  WfhZoteroToolsFactory.registerChatPDFMenu();        // ChatPDF submenu
+  WfhZoteroToolsFactory.registerContextMenu(); // PDF reader right-click
+  WfhZoteroToolsFactory.registerItemContextMenu(); // Library item right-click
+  WfhZoteroToolsFactory.registerChatPDFMenu(); // ChatPDF submenu
 
   await Promise.all(
     Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),

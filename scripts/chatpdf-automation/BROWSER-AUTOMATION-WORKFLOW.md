@@ -6,7 +6,7 @@ Coding Agent 与人类协作，基于 Playwright 及其命令行工具（CLI）�
 
 - 阅读本文档，以理念为指导开展实践。
 - 找到并调用 skill `playwright-cli`，里面有更仔细的使用该命令行工具的指引。如果没有，提醒用户安装。
-- 在实践过程中, 遇到弄不清楚的情况, 可以使用有头模式打开浏览器, 让人类协助一下. 
+- 在实践过程中, 遇到弄不清楚的情况, 可以使用有头模式打开浏览器, 让人类协助一下.
 - 在实践之后， 请根据最新经验更新本文档中过时的内容。
 
 ---
@@ -23,10 +23,10 @@ Coding Agent 与人类协作，基于 Playwright 及其命令行工具（CLI）�
 
 ### 1. 使用 `playwright-cli` 作为"导盲杖"
 
-* **直观性**：Agent 通过 `playwright-cli open` 打开浏览器，每一步命令的结果人类都能实时观察。
-* **YAML 快照与 Ref 定位**：CLI 将繁杂的 CSS 选择器浓缩为 YAML 文件，并分配简短的 `ref`（如 `e1`, `e35`）。
-  * **对人类**：`ref` 极其直观，避开了长达数行的 CSS 路径。
-  * **对 AI**：极大地节省了 Token，让 Agent 能在有限的上下文中处理极长的页面结构。
+- **直观性**：Agent 通过 `playwright-cli open` 打开浏览器，每一步命令的结果人类都能实时观察。
+- **YAML 快照与 Ref 定位**：CLI 将繁杂的 CSS 选择器浓缩为 YAML 文件，并分配简短的 `ref`（如 `e1`, `e35`）。
+  - **对人类**：`ref` 极其直观，避开了长达数行的 CSS 路径。
+  - **对 AI**：极大地节省了 Token，让 Agent 能在有限的上下文中处理极长的页面结构。
 
 ### 2. 复用已有登录态
 
@@ -65,12 +65,12 @@ Agent 在读取 YAML 文件时，不仅看到了 `ref`，还读取到了背后�
 
 ### 2. 最佳实践
 
-* **Profile 复用**：通过 `launchPersistentContext` 共享 CLI 阶段的登录状态，实现免密登录。
-* **输入策略选择**：
-  * `fill()`：用于快速、原子化的输入。
-  * `pressSequentially()` / `type()`：用于模拟真实按键，触发某些对输入极其敏感的 UI 监听器。
-* **显式点击方案**：在处理带有"立即回答/停止"动态切换按钮的复杂页面（如 Gemini）时，**显式点击按钮**通常比不可控的 `Enter` 键更稳健。
-* **等待菜单渲染**：点击打开菜单后，必须 `waitFor({ state: 'visible' })` 等待子菜单项出现，不能立即操作（菜单有动画延迟）。
+- **Profile 复用**：通过 `launchPersistentContext` 共享 CLI 阶段的登录状态，实现免密登录。
+- **输入策略选择**：
+  - `fill()`：用于快速、原子化的输入。
+  - `pressSequentially()` / `type()`：用于模拟真实按键，触发某些对输入极其敏感的 UI 监听器。
+- **显式点击方案**：在处理带有"立即回答/停止"动态切换按钮的复杂页面（如 Gemini）时，**显式点击按钮**通常比不可控的 `Enter` 键更稳健。
+- **等待菜单渲染**：点击打开菜单后，必须 `waitFor({ state: 'visible' })` 等待子菜单项出现，不能立即操作（菜单有动画延迟）。
 
 ---
 
@@ -101,19 +101,19 @@ SPA 网站（尤其是 Gemini、ChatGPT）会频繁更新 UI。当脚本失败�
 
 通过探索脚本确认的选择器（Gemini 3 时代）：
 
-| 操作 | 选择器 | 备注 |
-|------|--------|------|
-| 模式选择器 | `[data-test-id="bard-mode-menu-button"]` | aria-label="打开模式选择器"，在输入区域内 |
-| Pro 模式选项 | `[data-test-id="bard-mode-option-pro"]` | role=menuitemradio, aria-checked 表示选中状态 |
-| 上传菜单触发 | `button[aria-label="打开文件上传菜单"]` | "+" 按钮，在输入区域左下角 |
-| 上传文件菜单项 | `[data-test-id="local-images-files-uploader-button"]` | role=menuitem，文本"上传文件" |
-| 提示输入框 | `getByRole('textbox', { name: /输入提示\|Enter a prompt/ })` | contenteditable div，aria-label="为 Gemini 输入提示" |
-| 发送按钮 | `button[aria-label="发送"]` 或 `button.send-button` | **文本输入后才可见**，无 data-test-id |
-| 对话操作菜单 | `[data-test-id="conversation-actions-menu-icon-button"]` | 仅在对话页面出现 |
-| 重命名菜单项 | `[data-test-id="rename-button"]` | **新增 data-test-id**，不再需要文本匹配 |
-| 重命名输入框 | `[data-test-id="edit-title-input"]` | aria-label="重命名此对话" |
-| 重命名确认 | `[data-test-id="save-button"]` | 文本未改时按钮为 disabled |
-| 停止按钮 | `button[aria-label*="停止"]` / `button[aria-label*="Stop"]` | 生成回答时出现 |
+| 操作           | 选择器                                                       | 备注                                                 |
+| -------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
+| 模式选择器     | `[data-test-id="bard-mode-menu-button"]`                     | aria-label="打开模式选择器"，在输入区域内            |
+| Pro 模式选项   | `[data-test-id="bard-mode-option-pro"]`                      | role=menuitemradio, aria-checked 表示选中状态        |
+| 上传菜单触发   | `button[aria-label="打开文件上传菜单"]`                      | "+" 按钮，在输入区域左下角                           |
+| 上传文件菜单项 | `[data-test-id="local-images-files-uploader-button"]`        | role=menuitem，文本"上传文件"                        |
+| 提示输入框     | `getByRole('textbox', { name: /输入提示\|Enter a prompt/ })` | contenteditable div，aria-label="为 Gemini 输入提示" |
+| 发送按钮       | `button[aria-label="发送"]` 或 `button.send-button`          | **文本输入后才可见**，无 data-test-id                |
+| 对话操作菜单   | `[data-test-id="conversation-actions-menu-icon-button"]`     | 仅在对话页面出现                                     |
+| 重命名菜单项   | `[data-test-id="rename-button"]`                             | **新增 data-test-id**，不再需要文本匹配              |
+| 重命名输入框   | `[data-test-id="edit-title-input"]`                          | aria-label="重命名此对话"                            |
+| 重命名确认     | `[data-test-id="save-button"]`                               | 文本未改时按钮为 disabled                            |
+| 停止按钮       | `button[aria-label*="停止"]` / `button[aria-label*="Stop"]`  | 生成回答时出现                                       |
 
 ### 已知变化（对比 2026-02-07）
 

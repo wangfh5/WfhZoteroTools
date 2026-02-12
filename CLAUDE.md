@@ -20,6 +20,7 @@
 ```
 
 **使用方法**：
+
 - 使用 `github-kb` skill 查询本地仓库
 - 直接搜索源码：`grep -r "API名称" /Users/ssqc/github/zotero/`
 - 查看示例：`grep -r "registerEventListener" /Users/ssqc/github/zotero-plugin-toolkit/`
@@ -41,6 +42,7 @@
    - 或使用 WebSearch 工具
 
 2. **本地源码** - 最权威的文档
+
    ```bash
    # 在本地 Zotero 源码中搜索
    grep -r "createViewContextMenu" /Users/ssqc/github/zotero/
@@ -112,7 +114,7 @@ ztoolkit.Menu.register("item", {
 // ⚠️ 必须通过 Zotero.getActiveZoteroPane()，不能直接用 ZoteroPane
 // ZoteroPane 是窗口作用域的全局变量，在插件模块代码中不可访问
 const zp = Zotero.getActiveZoteroPane();
-const items = zp.getSelectedItems();       // 返回 Zotero.Item[]
+const items = zp.getSelectedItems(); // 返回 Zotero.Item[]
 const itemIDs = zp.getSelectedItems(true); // 返回 number[]
 ```
 
@@ -158,13 +160,20 @@ new ztoolkit.Clipboard().addFile(filePath).copy();
 if (Zotero.isMac) {
   const fileListStr = filePaths.map((p) => `"${p}"`).join(", ");
   const args = [
-    "-e", 'use framework "AppKit"',
-    "-e", 'use framework "Foundation"',
-    "-e", "set pb to current application's NSPasteboard's generalPasteboard()",
-    "-e", "pb's clearContents()",
-    "-e", `pb's declareTypes:{"NSFilenamesPboardType"} owner:(missing value)`,
-    "-e", `set fileList to current application's NSArray's arrayWithArray:{${fileListStr}}`,
-    "-e", `pb's setPropertyList:fileList forType:"NSFilenamesPboardType"`,
+    "-e",
+    'use framework "AppKit"',
+    "-e",
+    'use framework "Foundation"',
+    "-e",
+    "set pb to current application's NSPasteboard's generalPasteboard()",
+    "-e",
+    "pb's clearContents()",
+    "-e",
+    `pb's declareTypes:{"NSFilenamesPboardType"} owner:(missing value)`,
+    "-e",
+    `set fileList to current application's NSArray's arrayWithArray:{${fileListStr}}`,
+    "-e",
+    `pb's setPropertyList:fileList forType:"NSFilenamesPboardType"`,
   ];
   await Zotero.Utilities.Internal.exec("/usr/bin/osascript", args);
 }
@@ -176,7 +185,7 @@ if (Zotero.isMac) {
 new ztoolkit.ProgressWindow(config.addonName)
   .createLine({
     text: "消息内容",
-    type: "success",  // "success" | "error" | "default"
+    type: "success", // "success" | "error" | "default"
     progress: 100,
   })
   .show(2000);
@@ -209,6 +218,7 @@ npm run build
 ### 调试技巧
 
 1. **添加日志**
+
    ```typescript
    ztoolkit.log("功能名: 步骤描述", data);
    ```
@@ -249,18 +259,20 @@ zotero-plugin-wfh/
 ### 关键配置
 
 **package.json**:
+
 ```json
 {
   "config": {
     "addonName": "显示名称",
-    "addonID": "uniqueid@example.com",  // 必须唯一
-    "addonRef": "refname",              // 用于文件名
-    "addonInstance": "InstanceName"     // 全局变量名
+    "addonID": "uniqueid@example.com", // 必须唯一
+    "addonRef": "refname", // 用于文件名
+    "addonInstance": "InstanceName" // 全局变量名
   }
 }
 ```
 
 **hooks.ts**:
+
 ```typescript
 async function onStartup() {
   // 注册功能
@@ -380,12 +392,14 @@ new ztoolkit.Clipboard().addFile(path).copy()
 ### 踩坑记录
 
 #### ZoteroPane 作用域问题
+
 - `ZoteroPane` 是窗口作用域的全局变量，在插件模块 `.ts` 文件中**不可直接访问**
 - TypeScript 编译可能通过（如果在 `global.d.ts` 中声明了），但运行时会报错
 - **正确做法**：使用 `Zotero.getActiveZoteroPane()` 或 `ztoolkit.getGlobal("ZoteroPane")`
 - 源码参考：`zotero/chrome/content/zotero/xpcom/zotero.js` 中 `getActiveZoteroPane` 实现
 
 #### macOS 多文件剪贴板
+
 - `ztoolkit.Clipboard().addFile()` 只支持单文件（`filePath` 是单个字符串）
 - AppleScript `set the clipboard to {POSIX file "...", POSIX file "..."}` **不能用于多文件**！写入的是 AppleScript list 对象，Finder 无法识别
 - `NSPasteboard writeObjects:{url1, url2}` 在 AppleScript 中也只写入第一个文件
@@ -393,6 +407,7 @@ new ztoolkit.Clipboard().addFile(path).copy()
 - 可通过 `Zotero.Utilities.Internal.exec("/usr/bin/osascript", ["-e", ...])` 调用，多个 `-e` 参数分行传递
 
 #### 热重载菜单重复
+
 - `npm run start` 热重载时，`ztoolkit.Menu.register("item", ...)` 注册的菜单项可能重复
 - 因为 `onStartup` 重新执行但旧菜单项未清理
 - 这是开发时的正常现象，重启 Zotero 后恢复正常

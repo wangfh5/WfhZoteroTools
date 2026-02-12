@@ -65,14 +65,20 @@ export class WfhZoteroToolsFactory {
 
       const item = await Zotero.Items.getAsync(itemID);
       if (!item || !item.isAttachment()) {
-        WfhZoteroToolsFactory.showNotification("Not a valid attachment", "error");
+        WfhZoteroToolsFactory.showNotification(
+          "Not a valid attachment",
+          "error",
+        );
         return;
       }
 
       // Get the file path
       const filePath = await item.getFilePathAsync();
       if (!filePath) {
-        WfhZoteroToolsFactory.showNotification("File not found on disk", "error");
+        WfhZoteroToolsFactory.showNotification(
+          "File not found on disk",
+          "error",
+        );
         return;
       }
 
@@ -102,23 +108,30 @@ export class WfhZoteroToolsFactory {
       // Get the attachment item
       const item = await Zotero.Items.getAsync(itemID);
       if (!item || !item.isAttachment()) {
-        WfhZoteroToolsFactory.showNotification("Not a valid attachment", "error");
+        WfhZoteroToolsFactory.showNotification(
+          "Not a valid attachment",
+          "error",
+        );
         return;
       }
 
       // Get the file path
       const filePath = await item.getFilePathAsync();
       if (!filePath) {
-        WfhZoteroToolsFactory.showNotification("File not found on disk", "error");
+        WfhZoteroToolsFactory.showNotification(
+          "File not found on disk",
+          "error",
+        );
         return;
       }
 
       // Copy file to clipboard using ztoolkit
-      new ztoolkit.Clipboard()
-        .addFile(filePath)
-        .copy();
+      new ztoolkit.Clipboard().addFile(filePath).copy();
 
-      WfhZoteroToolsFactory.showNotification("File copied to clipboard", "success");
+      WfhZoteroToolsFactory.showNotification(
+        "File copied to clipboard",
+        "success",
+      );
     } catch (error) {
       ztoolkit.log("Error copying file to clipboard:", error);
       WfhZoteroToolsFactory.showNotification("Error copying file", "error");
@@ -204,7 +217,11 @@ export class WfhZoteroToolsFactory {
         const attachmentIDs = item.getAttachments();
         for (const attID of attachmentIDs) {
           const att = await Zotero.Items.getAsync(attID);
-          if (att && att.isAttachment() && att.attachmentContentType === "application/pdf") {
+          if (
+            att &&
+            att.isAttachment() &&
+            att.attachmentContentType === "application/pdf"
+          ) {
             const filePath = await att.getFilePathAsync();
             if (filePath) filePaths.push(filePath);
           }
@@ -229,13 +246,20 @@ export class WfhZoteroToolsFactory {
     if (Zotero.isMac) {
       const fileListStr = filePaths.map((p) => `"${p}"`).join(", ");
       const args = [
-        "-e", 'use framework "AppKit"',
-        "-e", 'use framework "Foundation"',
-        "-e", "set pb to current application's NSPasteboard's generalPasteboard()",
-        "-e", "pb's clearContents()",
-        "-e", `pb's declareTypes:{"NSFilenamesPboardType"} owner:(missing value)`,
-        "-e", `set fileList to current application's NSArray's arrayWithArray:{${fileListStr}}`,
-        "-e", `pb's setPropertyList:fileList forType:"NSFilenamesPboardType"`,
+        "-e",
+        'use framework "AppKit"',
+        "-e",
+        'use framework "Foundation"',
+        "-e",
+        "set pb to current application's NSPasteboard's generalPasteboard()",
+        "-e",
+        "pb's clearContents()",
+        "-e",
+        `pb's declareTypes:{"NSFilenamesPboardType"} owner:(missing value)`,
+        "-e",
+        `set fileList to current application's NSArray's arrayWithArray:{${fileListStr}}`,
+        "-e",
+        `pb's setPropertyList:fileList forType:"NSFilenamesPboardType"`,
       ];
       await Zotero.Utilities.Internal.exec("/usr/bin/osascript", args);
     } else {
@@ -256,7 +280,8 @@ export class WfhZoteroToolsFactory {
         return;
       }
 
-      const filePaths = await WfhZoteroToolsFactory.getFilePathsFromItems(items);
+      const filePaths =
+        await WfhZoteroToolsFactory.getFilePathsFromItems(items);
       if (filePaths.length === 0) {
         WfhZoteroToolsFactory.showNotification("No PDF files found", "error");
         return;
@@ -264,9 +289,10 @@ export class WfhZoteroToolsFactory {
 
       await WfhZoteroToolsFactory.copyFilesToClipboard(filePaths);
 
-      const message = filePaths.length === 1
-        ? "File copied to clipboard"
-        : `Copied ${filePaths.length} files to clipboard`;
+      const message =
+        filePaths.length === 1
+          ? "File copied to clipboard"
+          : `Copied ${filePaths.length} files to clipboard`;
       WfhZoteroToolsFactory.showNotification(message, "success");
     } catch (error) {
       ztoolkit.log("Error copying files to clipboard:", error);
@@ -361,9 +387,7 @@ export class WfhZoteroToolsFactory {
         return;
       }
 
-      const result = await WfhZoteroToolsFactory.getCitekeyAndPdfPath(
-        items[0],
-      );
+      const result = await WfhZoteroToolsFactory.getCitekeyAndPdfPath(items[0]);
       if (!result) {
         WfhZoteroToolsFactory.showNotification("No PDF file found", "error");
         return;
@@ -410,10 +434,7 @@ export class WfhZoteroToolsFactory {
         args.push(`@${citekey}`);
       }
 
-      ztoolkit.log(
-        `WfhZoteroTools: Running ${provider} with args:`,
-        args,
-      );
+      ztoolkit.log(`WfhZoteroTools: Running ${provider} with args:`, args);
 
       const notifyMsg =
         provider === "both"
@@ -423,7 +444,10 @@ export class WfhZoteroToolsFactory {
 
       await Zotero.Utilities.Internal.exec(nodePath, args);
 
-      ztoolkit.log("WfhZoteroTools: Script execution completed, reading temp file:", tempOutputPath);
+      ztoolkit.log(
+        "WfhZoteroTools: Script execution completed, reading temp file:",
+        tempOutputPath,
+      );
 
       // Read and parse output
       let outputContent = "";
@@ -434,7 +458,7 @@ export class WfhZoteroToolsFactory {
           ztoolkit.log("WfhZoteroTools: Temp file exists, reading contents...");
           const content = await Zotero.File.getContentsAsync(tempOutputPath);
           ztoolkit.log("WfhZoteroTools: File content type:", typeof content);
-          if (typeof content === 'string') {
+          if (typeof content === "string") {
             outputContent = content;
             ztoolkit.log("WfhZoteroTools: Output content:", outputContent);
           }
@@ -446,18 +470,25 @@ export class WfhZoteroToolsFactory {
         ztoolkit.log("Error reading temp output file:", e);
       }
 
-      ztoolkit.log("WfhZoteroTools: Parsed outputContent length:", outputContent.length);
+      ztoolkit.log(
+        "WfhZoteroTools: Parsed outputContent length:",
+        outputContent.length,
+      );
 
       // Parse JSON lines and save attachments
       if (outputContent) {
-        const lines = outputContent.trim().split('\n');
+        const lines = outputContent.trim().split("\n");
         ztoolkit.log("WfhZoteroTools: Number of lines:", lines.length);
         for (const line of lines) {
           try {
             ztoolkit.log("WfhZoteroTools: Parsing line:", line);
             const data = JSON.parse(line);
             if (data.url) {
-              ztoolkit.log("WfhZoteroTools: Saving attachment for", data.provider, data.url);
+              ztoolkit.log(
+                "WfhZoteroTools: Saving attachment for",
+                data.provider,
+                data.url,
+              );
               await WfhZoteroToolsFactory.saveChatPDFAttachment(
                 items[0],
                 data.provider,
@@ -483,11 +514,24 @@ export class WfhZoteroToolsFactory {
   /**
    * Save ChatPDF conversation URL as a linked attachment
    */
-  static async saveChatPDFAttachment(parentItem: Zotero.Item, provider: string, url: string) {
-    ztoolkit.log("WfhZoteroTools: saveChatPDFAttachment called", { parentItemID: parentItem.id, provider, url });
+  static async saveChatPDFAttachment(
+    parentItem: Zotero.Item,
+    provider: string,
+    url: string,
+  ) {
+    ztoolkit.log("WfhZoteroTools: saveChatPDFAttachment called", {
+      parentItemID: parentItem.id,
+      provider,
+      url,
+    });
     try {
-      const title = provider === "chatgpt" ? "Chat with ChatGPT" : "Chat with Gemini";
-      ztoolkit.log("WfhZoteroTools: Calling linkFromURL with:", { url, parentItemID: parentItem.id, title });
+      const title =
+        provider === "chatgpt" ? "Chat with ChatGPT" : "Chat with Gemini";
+      ztoolkit.log("WfhZoteroTools: Calling linkFromURL with:", {
+        url,
+        parentItemID: parentItem.id,
+        title,
+      });
       await Zotero.Attachments.linkFromURL({
         url: url,
         parentItemID: parentItem.id,
@@ -497,7 +541,10 @@ export class WfhZoteroToolsFactory {
       WfhZoteroToolsFactory.showNotification(`Saved ${title} link`, "success");
     } catch (error) {
       ztoolkit.log("Error saving ChatPDF attachment:", error);
-      WfhZoteroToolsFactory.showNotification("Failed to save chat link", "error");
+      WfhZoteroToolsFactory.showNotification(
+        "Failed to save chat link",
+        "error",
+      );
     }
   }
 

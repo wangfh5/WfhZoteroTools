@@ -4,17 +4,17 @@
 
 ## 项目目标
 
-项目目标是开发一个自动化脚本，能够自动上传 PDF 到 ChatGPT/Gemini 并重命名对话。 
+项目目标是开发一个自动化脚本，能够自动上传 PDF 到 ChatGPT/Gemini 并重命名对话。
 完整的工作流: 打开网页-选择思考模型-上传PDF-输入提示词-发送-等待对话生成完毕-重命名对话-保存网址的JSON
 
-由于网页变化较快, 所以时常需要重新更新脚本, 此时可以重走[BROWSER-AUTOMATION-GUIDE.md](./BROWSER-AUTOMATION-GUIDE.md)的流程, 让Agent重新探索一遍. 
+由于网页变化较快, 所以时常需要重新更新脚本, 此时可以重走[BROWSER-AUTOMATION-GUIDE.md](./BROWSER-AUTOMATION-GUIDE.md)的流程, 让Agent重新探索一遍.
 
 ---
 
 ## 项目文档结构
 
 - [README.md](./README.md) — ChatPDF自动化脚本的使用方法
-- [BROWSER-AUTOMATION-GUIDE.md](./BROWSER-AUTOMATION-GUIDE.md) — 从 CLI 探索到脚本合成的完整开发流程. 如果不确定如何进行网页自动化, 或者发现测试一直不顺利, 请参考这个文档进行第一性探索. 
+- [BROWSER-AUTOMATION-GUIDE.md](./BROWSER-AUTOMATION-GUIDE.md) — 从 CLI 探索到脚本合成的完整开发流程. 如果不确定如何进行网页自动化, 或者发现测试一直不顺利, 请参考这个文档进行第一性探索.
 - `doc` 文件夹: 放置重要新特性的开发文档
   - [Browser-Daemon.md](./doc/Browser-Daemon.md) — 浏览器守护进程的实现细节
 
@@ -38,11 +38,11 @@ Playwright 的 `launchPersistentContext` 启动的浏览器是 Node.js 的子进
 
 ```javascript
 // 启动守护进程
-const daemonProcess = spawn('node', [daemonScript], {
-  detached: true,   // 独立于父进程运行
-  stdio: 'ignore',  // 不继承 stdio
+const daemonProcess = spawn("node", [daemonScript], {
+  detached: true, // 独立于父进程运行
+  stdio: "ignore", // 不继承 stdio
 });
-daemonProcess.unref();  // 允许父进程独立退出
+daemonProcess.unref(); // 允许父进程独立退出
 
 // 轮询等待 CDP 就绪
 async function waitForCDP(maxWaitMs) {
