@@ -1,5 +1,13 @@
-pref-title = Addon Template Example
+pref-title = WfhZoteroTools
 pref-enable =
     .label = Enable
 pref-input = Input
+pref-chatpdf-scripts-dir = ChatPDF Scripts Directory
+pref-chatpdf-scripts-dir-input =
+    .placeholder = /path/to/zotero-plugin-wfh/scripts/chatpdf-automation
+pref-chatpdf-scripts-dir-desc = Absolute path to the chatpdf-automation scripts directory. Clone the repo and point to scripts/chatpdf-automation.
+pref-node-path = Node.js Path (optional)
+pref-node-path-input =
+    .placeholder = Leave empty for auto-detection
+pref-node-path-desc = Absolute path to the Node.js executable. Leave empty to auto-detect from common locations.
 pref-help = { $name } Build { $version } { $time }

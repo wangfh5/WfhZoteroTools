@@ -3,6 +3,8 @@
 /* eslint-disable */
 // @ts-nocheck
 export type FluentMessageId =
+  | 'error-chatpdf-scripts-not-configured'
+  | 'error-node-not-found'
   | 'item-info-row-example-label'
   | 'item-section-example1-head-text'
   | 'item-section-example1-sidenav-tooltip'
@@ -20,9 +22,15 @@ export type FluentMessageId =
   | 'menuitem-label'
   | 'menuitem-submenulabel'
   | 'menupopup-label'
+  | 'pref-chatpdf-scripts-dir'
+  | 'pref-chatpdf-scripts-dir-desc'
+  | 'pref-chatpdf-scripts-dir-input'
   | 'pref-enable'
   | 'pref-help'
   | 'pref-input'
+  | 'pref-node-path'
+  | 'pref-node-path-desc'
+  | 'pref-node-path-input'
   | 'pref-title'
   | 'prefs-table-detail'
   | 'prefs-table-title'

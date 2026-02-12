@@ -1,5 +1,5 @@
 import { WfhZoteroToolsFactory } from "./modules/wfhZoteroTools";
-import { initLocale } from "./utils/locale";
+import { initLocale, getString } from "./utils/locale";
 import { createZToolkit } from "./utils/ztoolkit";
 
 async function onStartup() {
@@ -10,6 +10,14 @@ async function onStartup() {
   ]);
 
   initLocale();
+
+  // Register preference pane in Zotero Settings
+  Zotero.PreferencePanes.register({
+    pluginID: addon.data.config.addonID,
+    src: rootURI + "content/preferences.xhtml",
+    label: getString("prefs-title"),
+    image: `chrome://${addon.data.config.addonRef}/content/icons/tool.svg`,
+  });
 
   // Register context menus
   WfhZoteroToolsFactory.registerContextMenu();      // PDF reader right-click

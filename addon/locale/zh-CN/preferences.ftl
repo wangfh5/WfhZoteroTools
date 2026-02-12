@@ -1,5 +1,13 @@
-pref-title = 插件模板设置示例
+pref-title = WfhZoteroTools 设置
 pref-enable =
     .label = 开启
 pref-input = 输入
+pref-chatpdf-scripts-dir = ChatPDF 脚本目录
+pref-chatpdf-scripts-dir-input =
+    .placeholder = /path/to/zotero-plugin-wfh/scripts/chatpdf-automation
+pref-chatpdf-scripts-dir-desc = chatpdf-automation 脚本目录的绝对路径。请克隆仓库后将路径指向 scripts/chatpdf-automation 目录。
+pref-node-path = Node.js 路径（可选）
+pref-node-path-input =
+    .placeholder = 留空则自动检测
+pref-node-path-desc = Node.js 可执行文件的绝对路径。留空会自动从常见位置检测。
 pref-help = { $name } Build { $version } { $time }

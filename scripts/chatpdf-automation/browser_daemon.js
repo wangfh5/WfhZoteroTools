@@ -1,7 +1,14 @@
 const { chromium } = require('playwright');
+const path = require('path');
+const os = require('os');
 
 const CDP_PORT = 9222;
-const SHARED_PROFILE = '/Users/ssqc/Library/Caches/ms-playwright/daemon/chatpdf-shared-profile';
+
+// Derive browser profile path from user home directory (cross-platform)
+const SHARED_PROFILE = path.join(
+  os.homedir(),
+  'Library', 'Caches', 'ms-playwright', 'daemon', 'chatpdf-shared-profile',
+);
 
 async function startDaemon() {
   console.log('Starting browser daemon...');

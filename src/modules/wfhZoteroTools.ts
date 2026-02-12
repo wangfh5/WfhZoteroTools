@@ -1,5 +1,6 @@
 import { config } from "../../package.json";
 import { getString } from "../utils/locale";
+import { getPref } from "../utils/prefs";
 
 export class WfhZoteroToolsFactory {
   /**
@@ -135,6 +136,57 @@ export class WfhZoteroToolsFactory {
         progress: 100,
       })
       .show(2000);
+  }
+
+  /**
+   * Get the chatpdf-automation scripts directory from Zotero preferences.
+   * Users must set this preference to the absolute path of their
+   * chatpdf-automation scripts directory (e.g., after cloning the repo).
+   */
+  static getChatPDFScriptsDir(): string {
+    const dir = getPref("chatpdfScriptsDir");
+    if (!dir) {
+      throw new Error(
+        "ChatPDF scripts directory not configured.\n" +
+          "Please set extensions.zotero.wfhZoteroTools.chatpdfScriptsDir " +
+          "in about:config to the absolute path of your " +
+          "chatpdf-automation scripts directory.\n" +
+          "e.g., /path/to/zotero-plugin-wfh/scripts/chatpdf-automation",
+      );
+    }
+    return dir;
+  }
+
+  /**
+   * Find Node.js executable path.
+   * Checks the nodePath preference first, then tries common OS-specific locations.
+   */
+  static findNodePath(): string {
+    // 1. Check user preference first
+    const customPath = getPref("nodePath");
+    if (customPath) return customPath;
+
+    // 2. Try common well-known paths by platform
+    const candidates: string[] = Zotero.isMac
+      ? ["/opt/homebrew/bin/node", "/usr/local/bin/node"]
+      : Zotero.isLinux
+        ? ["/usr/bin/node", "/usr/local/bin/node"]
+        : ["C:\\Program Files\\nodejs\\node.exe"];
+
+    for (const p of candidates) {
+      try {
+        const file = Zotero.File.pathToFile(p);
+        if (file.exists()) return p;
+      } catch {
+        // skip inaccessible paths
+      }
+    }
+
+    throw new Error(
+      "Node.js not found.\n" +
+        "Install Node.js, or set extensions.zotero.wfhZoteroTools.nodePath " +
+        "in about:config to the absolute path of your node executable.",
+    );
   }
 
   /**
@@ -324,12 +376,34 @@ export class WfhZoteroToolsFactory {
         both: "both_chat_pdf.js",
       };
       const scriptName = scriptNames[provider];
-      const scriptDir =
-        "/Users/ssqc/AIGC_Projects/zotero-plugin-wfh/scripts/chatpdf-automation";
+
+      // Resolve paths from preferences / auto-detection
+      let scriptDir: string;
+      let nodePath: string;
+      try {
+        scriptDir = WfhZoteroToolsFactory.getChatPDFScriptsDir();
+      } catch (e) {
+        ztoolkit.log("WfhZoteroTools: Scripts dir not configured:", e);
+        WfhZoteroToolsFactory.showNotification(
+          getString("error-chatpdf-scripts-not-configured"),
+          "error",
+        );
+        return;
+      }
+      try {
+        nodePath = WfhZoteroToolsFactory.findNodePath();
+      } catch (e) {
+        ztoolkit.log("WfhZoteroTools: Node.js not found:", e);
+        WfhZoteroToolsFactory.showNotification(
+          getString("error-node-not-found"),
+          "error",
+        );
+        return;
+      }
       const scriptPath = `${scriptDir}/${scriptName}`;
 
       // Generate temp file path for output
-      const tempOutputPath = `/tmp/chatpdf_output_${Date.now()}_${Math.random().toString(36).slice(2, 9)}.json`;
+      const tempOutputPath = `${Zotero.getTempDirectory().path}/chatpdf_output_${Date.now()}_${Math.random().toString(36).slice(2, 9)}.json`;
 
       const args = [scriptPath, pdfPath, `--output=${tempOutputPath}`];
       if (citekey) {
@@ -347,7 +421,7 @@ export class WfhZoteroToolsFactory {
           : `Launching ${provider}...`;
       WfhZoteroToolsFactory.showNotification(notifyMsg, "success");
 
-      await Zotero.Utilities.Internal.exec("/opt/homebrew/bin/node", args);
+      await Zotero.Utilities.Internal.exec(nodePath, args);
 
       ztoolkit.log("WfhZoteroTools: Script execution completed, reading temp file:", tempOutputPath);
 

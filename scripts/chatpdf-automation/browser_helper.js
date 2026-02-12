@@ -1,11 +1,17 @@
 const { chromium } = require('playwright');
 const { execSync, spawn } = require('child_process');
 const path = require('path');
+const os = require('os');
 const http = require('http');
 
 const CDP_PORT = 9222;
 const CDP_URL = `http://localhost:${CDP_PORT}`;
-const SHARED_PROFILE = '/Users/ssqc/Library/Caches/ms-playwright/daemon/chatpdf-shared-profile';
+
+// Derive browser profile path from user home directory (cross-platform)
+const SHARED_PROFILE = path.join(
+  os.homedir(),
+  'Library', 'Caches', 'ms-playwright', 'daemon', 'chatpdf-shared-profile',
+);
 
 function activateZotero() {
   try {
@@ -88,7 +94,10 @@ async function getOrLaunchBrowser() {
     console.log('未找到已有浏览器，启动守护进程...');
     
     const daemonScript = path.join(__dirname, 'browser_daemon.js');
-    const daemonProcess = spawn('node', [daemonScript], {
+    // Use process.execPath (absolute path to current node binary) instead of
+    // bare 'node', because Zotero's exec environment has a minimal PATH that
+    // typically doesn't include /opt/homebrew/bin or /usr/local/bin.
+    const daemonProcess = spawn(process.execPath, [daemonScript], {
       detached: true,
       stdio: 'ignore',
     });

@@ -1,0 +1,44 @@
+<linkset>
+  <html:link rel="localization" href="__addonRef__-preferences.ftl" />
+</linkset>
+<groupbox>
+  <label><html:h2 data-l10n-id="pref-title"></html:h2></label>
+
+  <!-- ChatPDF Scripts Directory -->
+  <vbox>
+    <html:label
+      for="zotero-prefpane-__addonRef__-chatpdfScriptsDir"
+      data-l10n-id="pref-chatpdf-scripts-dir"
+    ></html:label>
+    <html:input
+      type="text"
+      id="zotero-prefpane-__addonRef__-chatpdfScriptsDir"
+      preference="chatpdfScriptsDir"
+      style="width: 100%"
+      data-l10n-id="pref-chatpdf-scripts-dir-input"
+    />
+    <description data-l10n-id="pref-chatpdf-scripts-dir-desc" />
+  </vbox>
+
+  <!-- Node.js Path -->
+  <vbox style="margin-top: 10px">
+    <html:label
+      for="zotero-prefpane-__addonRef__-nodePath"
+      data-l10n-id="pref-node-path"
+    ></html:label>
+    <html:input
+      type="text"
+      id="zotero-prefpane-__addonRef__-nodePath"
+      preference="nodePath"
+      style="width: 100%"
+      data-l10n-id="pref-node-path-input"
+    />
+    <description data-l10n-id="pref-node-path-desc" />
+  </vbox>
+</groupbox>
+<vbox>
+  <html:label
+    data-l10n-id="pref-help"
+    data-l10n-args='{"time": "__buildTime__","name": "__addonName__","version":"__buildVersion__"}'
+  ></html:label>
+</vbox>
