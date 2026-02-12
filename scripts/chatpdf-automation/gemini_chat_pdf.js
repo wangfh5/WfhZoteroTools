@@ -101,12 +101,14 @@ async function waitForGeminiResponseFinished(page, timeoutMs = 300000, quietMs =
 
 async function waitForGeminiSendButton(page, timeoutMs = 90000) {
   const deadline = Date.now() + timeoutMs;
+  // 2026-02: Send button has aria-label="发送", class includes "send-button".
+  // It is hidden until text is typed in the prompt input.
   const selectors = [
-    'button[type="submit"]',
-    'button[aria-label*="Submit"]',
+    'button.send-button',
     'button[aria-label*="发送"]',
     'button[aria-label*="Send"]',
-    'button:has(mat-icon:has-text("send"))',
+    'button[aria-label*="Submit"]',
+    'button[type="submit"]',
   ];
 
   while (Date.now() < deadline) {
@@ -163,18 +165,25 @@ async function chatWithGemini(pdfPath, chatName, existingPage, outputFile = null
     await page.goto('https://gemini.google.com/app');
 
     // 1. 切换模式为 Pro
+    // 2026-02: Use stable data-test-id selectors. The old approach matched a disabled
+    // "PRO" pill button before reaching the real mode selector dropdown trigger.
     console.log('正在检查并切换至 Pro 模式...');
-    const modeSelector = page.getByRole('button', { name: /快速|Fast|思考|Think|Pro/ });
+    const modeSelector = page.locator('[data-test-id="bard-mode-menu-button"]');
     await modeSelector.waitFor({ state: 'visible' });
     await modeSelector.click();
-    await page.getByRole('menuitemradio', { name: /Pro/ }).click();
+    const proOption = page.locator('[data-test-id="bard-mode-option-pro"]');
+    await proOption.waitFor({ state: 'visible', timeout: 5000 });
+    await proOption.click();
     await page.waitForTimeout(1000);
 
     // 2. 上传文件
-    // Gemini changed upload submenu items from role=button to role=menuitem (2026-02).
-    // Stable selector: data-test-id="local-images-files-uploader-button"
+    // 2026-02: The "+" button in the input area triggers the upload menu.
+    // aria-label="打开文件上传菜单" remains stable.
+    // Stable submenu item: data-test-id="local-images-files-uploader-button"
     console.log('正在上传文件...');
-    await page.getByRole('button', { name: /打开文件上传菜单|Upload/ }).click();
+    const uploadTrigger = page.locator('button[aria-label="打开文件上传菜单"]');
+    await uploadTrigger.waitFor({ state: 'visible', timeout: 10000 });
+    await uploadTrigger.click();
 
     // Wait for the upload menu to render
     const uploadOption = page.locator('[data-test-id="local-images-files-uploader-button"]');
@@ -189,7 +198,8 @@ async function chatWithGemini(pdfPath, chatName, existingPage, outputFile = null
     await page.waitForTimeout(1000);
 
     // 3. 输入 Prompt 并发送
-    // Gemini renamed the textbox from "在此处输入提示" to "为 Gemini 输入提示" (2026-02).
+    // 2026-02: Textbox is a contenteditable div with aria-label "为 Gemini 输入提示".
+    // Placeholder shows "问问 Gemini 3". The role=textbox selector remains stable.
     console.log('正在输入提示词...');
     const textBox = page.getByRole('textbox', { name: /输入提示|Enter a prompt/ });
     await textBox.waitFor({ state: 'visible' });
@@ -223,21 +233,17 @@ async function chatWithGemini(pdfPath, chatName, existingPage, outputFile = null
       await page.waitForTimeout(400);
 
       // Step 2: Click the "重命名/Rename" menu item
-      // Use evaluate-based click as primary (bypasses Playwright actionability which can hang)
-      const renameClicked = await page.evaluate(() => {
-        const items = Array.from(document.querySelectorAll('[role="menuitem"]'));
-        const renameItem = items.find((el) => /重命名|Rename/i.test(el.textContent || ''));
-        if (renameItem) {
-          renameItem.click();
-          return true;
-        }
-        return false;
-      });
-
-      if (!renameClicked) {
-        const renameMenuItem = page.getByRole('menuitem', { name: /重命名|Rename/i });
-        await renameMenuItem.waitFor({ state: 'visible', timeout: 5000 });
-        await renameMenuItem.click({ force: true });
+      // 2026-02: Rename now has a stable data-test-id="rename-button"
+      const renameBtn = page.locator('[data-test-id="rename-button"]');
+      await renameBtn.waitFor({ state: 'visible', timeout: 5000 });
+      try {
+        await renameBtn.click({ timeout: 3000 });
+      } catch {
+        // Fallback: evaluate-based click bypasses actionability checks
+        await page.evaluate(() => {
+          const el = document.querySelector('[data-test-id="rename-button"]');
+          if (el) el.click();
+        });
       }
 
       await page.waitForTimeout(500);

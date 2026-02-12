@@ -2,6 +2,13 @@
 
 本目录下的 ChatPDF 自动化脚本（Playwright + Node.js）开发经验与快速参考。
 
+## 项目目标
+
+项目目标是开发一个自动化脚本，能够自动上传 PDF 到 ChatGPT/Gemini 并重命名对话。 
+完整的工作流: 打开网页-选择思考模型-上传PDF-输入提示词-发送-等待对话生成完毕-重命名对话-保存网址的JSON
+
+由于网页变化较快, 所以时常需要重新更新脚本, 此时可以重走[BROWSER-AUTOMATION-GUIDE.md](./BROWSER-AUTOMATION-GUIDE.md)的流程, 让Agent重新探索一遍. 
+
 ---
 
 ## 项目文档结构
@@ -61,4 +68,4 @@ const browser = await chromium.connectOverCDP(CDP_URL);
 
 ---
 
-**最后更新**: 2026-02-11
+**最后更新**: 2026-02-12

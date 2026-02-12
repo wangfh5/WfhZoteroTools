@@ -97,19 +97,31 @@ SPA 网站（尤其是 Gemini、ChatGPT）会频繁更新 UI。当脚本失败�
 
 ---
 
-## 实战参考：Gemini 稳定选择器 (2026-02)
+## 实战参考：Gemini 稳定选择器 (2026-02-12)
 
-通过 CLI 探索确认的选择器：
+通过探索脚本确认的选择器（Gemini 3 时代）：
 
 | 操作 | 选择器 | 备注 |
 |------|--------|------|
-| 上传文件菜单项 | `[data-test-id="local-images-files-uploader-button"]` | 从 role=button 变为 role=menuitem |
-| 对话操作菜单 | `[data-test-id="conversation-actions-menu-icon-button"]` | 顶部 more_vert 按钮 |
-| 重命名菜单项 | `getByRole('menuitem', { name: /重命名\|Rename/i })` | 无 data-test-id，**必须用 `force: true` 点击** |
-| 重命名输入框 | `[data-test-id="edit-title-input"]` | 对话框中的输入框 |
+| 模式选择器 | `[data-test-id="bard-mode-menu-button"]` | aria-label="打开模式选择器"，在输入区域内 |
+| Pro 模式选项 | `[data-test-id="bard-mode-option-pro"]` | role=menuitemradio, aria-checked 表示选中状态 |
+| 上传菜单触发 | `button[aria-label="打开文件上传菜单"]` | "+" 按钮，在输入区域左下角 |
+| 上传文件菜单项 | `[data-test-id="local-images-files-uploader-button"]` | role=menuitem，文本"上传文件" |
+| 提示输入框 | `getByRole('textbox', { name: /输入提示\|Enter a prompt/ })` | contenteditable div，aria-label="为 Gemini 输入提示" |
+| 发送按钮 | `button[aria-label="发送"]` 或 `button.send-button` | **文本输入后才可见**，无 data-test-id |
+| 对话操作菜单 | `[data-test-id="conversation-actions-menu-icon-button"]` | 仅在对话页面出现 |
+| 重命名菜单项 | `[data-test-id="rename-button"]` | **新增 data-test-id**，不再需要文本匹配 |
+| 重命名输入框 | `[data-test-id="edit-title-input"]` | aria-label="重命名此对话" |
 | 重命名确认 | `[data-test-id="save-button"]` | 文本未改时按钮为 disabled |
+| 停止按钮 | `button[aria-label*="停止"]` / `button[aria-label*="Stop"]` | 生成回答时出现 |
 
-Gemini Prompt 输入框使用 `getByRole('textbox', { name: /输入提示|Enter a prompt/ })` 定位。
+### 已知变化（对比 2026-02-07）
+
+- **模式选择器**：旧选择器 `getByRole('button', { name: /快速|Pro/ })` 会匹配到页面顶部一个 disabled 的 "PRO" 徽章按钮，导致超时。新选择器使用 `data-test-id`，不会误匹配。
+- **模式选项**：新增 `data-test-id="bard-mode-option-*"`（快速/思考/pro），比 `getByRole('menuitemradio', { name: /Pro/ })` 更稳定。
+- **重命名按钮**：新增 `data-test-id="rename-button"`，不再需要通过文本内容匹配。
+- **上传菜单**：增加了"导入代码" (`code-import-button`)、"NotebookLM" (`notebooks-import-button`) 等新选项。
+- **发送按钮**：不再使用 `type="submit"` 属性，改为 CSS class `send-button`。输入文本前按钮隐藏。
 
 ---
 
@@ -126,4 +138,4 @@ Gemini Prompt 输入框使用 `getByRole('textbox', { name: /输入提示|Enter 
 
 ---
 
-**最后更新**: 2026-02-11
+**最后更新**: 2026-02-12
