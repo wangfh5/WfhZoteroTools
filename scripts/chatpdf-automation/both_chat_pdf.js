@@ -8,17 +8,25 @@ const { chatWithGemini } = require("./gemini_chat_pdf");
 function parseArgs(argv) {
   const args = [];
   let outputFile = null;
+  let userDataDir = null;
   for (const arg of argv) {
     if (arg.startsWith("--output=")) {
       outputFile = arg.substring("--output=".length);
+    } else if (arg.startsWith("--user-data-dir=")) {
+      userDataDir = arg.substring("--user-data-dir=".length);
     } else {
       args.push(arg);
     }
   }
-  return { args, outputFile };
+  return { args, outputFile, userDataDir };
 }
 
-async function chatWithBoth(pdfPath, chatName, outputFile = null) {
+async function chatWithBoth(
+  pdfPath,
+  chatName,
+  outputFile = null,
+  userDataDir = null,
+) {
   if (!pdfPath) {
     console.error("Usage: node both_chat_pdf.js <path-to-pdf> [chat-name]");
     process.exit(1);
@@ -31,7 +39,7 @@ async function chatWithBoth(pdfPath, chatName, outputFile = null) {
   }
 
   console.log("正在启动浏览器 (Both)...");
-  const { context, page: defaultPage } = await getOrLaunchBrowser();
+  const { context, page: defaultPage } = await getOrLaunchBrowser(userDataDir);
 
   // Close the default page and create two fresh pages
   const chatgptPage = await context.newPage();
@@ -79,10 +87,10 @@ async function chatWithBoth(pdfPath, chatName, outputFile = null) {
 }
 
 if (require.main === module) {
-  const { args, outputFile } = parseArgs(process.argv.slice(2));
+  const { args, outputFile, userDataDir } = parseArgs(process.argv.slice(2));
   const target = args[0];
   const chatName = args[1];
-  chatWithBoth(target, chatName, outputFile);
+  chatWithBoth(target, chatName, outputFile, userDataDir);
 }
 
 module.exports = { chatWithBoth };

@@ -75,24 +75,35 @@ async function getOrCreatePage(context) {
   return blankPage || (await context.newPage());
 }
 
-async function getOrLaunchBrowser() {
+async function getOrLaunchBrowser(userDataDir = null) {
   try {
     // 尝试连接已运行的浏览器
     console.log("尝试连接已有浏览器...");
     const browser = await chromium.connectOverCDP(CDP_URL);
     const context = browser.contexts()[0];
     const page = await getOrCreatePage(context);
-    console.log("已连接到现有浏览器，打开新 Tab。");
+    if (userDataDir) {
+      console.warn(
+        `⚠️  已连接到正在运行的浏览器，--user-data-dir=${userDataDir} 被忽略。\n` +
+          `   如需切换用户数据目录，请先关闭浏览器窗口再重新触发。`,
+      );
+    } else {
+      console.log("已连接到现有浏览器，打开新 Tab。");
+    }
     return { browser, context, page };
   } catch {
     // 无浏览器运行，启动守护进程
     console.log("未找到已有浏览器，启动守护进程...");
 
     const daemonScript = path.join(__dirname, "browser_daemon.js");
+    const daemonArgs = [daemonScript];
+    if (userDataDir) {
+      daemonArgs.push(`--user-data-dir=${userDataDir}`);
+    }
     // Use process.execPath (absolute path to current node binary) instead of
     // bare 'node', because Zotero's exec environment has a minimal PATH that
     // typically doesn't include /opt/homebrew/bin or /usr/local/bin.
-    const daemonProcess = spawn(process.execPath, [daemonScript], {
+    const daemonProcess = spawn(process.execPath, daemonArgs, {
       detached: true,
       stdio: "ignore",
     });

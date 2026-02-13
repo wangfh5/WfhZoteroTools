@@ -4,8 +4,8 @@ const os = require("os");
 
 const CDP_PORT = 9222;
 
-// Derive browser profile path from user home directory (cross-platform)
-const SHARED_PROFILE = path.join(
+// Default isolated user data directory (original behavior)
+const DEFAULT_ISOLATED_USER_DATA_DIR = path.join(
   os.homedir(),
   "Library",
   "Caches",
@@ -14,11 +14,40 @@ const SHARED_PROFILE = path.join(
   "chatpdf-shared-profile",
 );
 
+/**
+ * Resolve user data directory from input string.
+ * - empty/null → default isolated directory
+ * - anything else → treated as absolute path
+ */
+function resolveUserDataDir(input) {
+  if (!input) return DEFAULT_ISOLATED_USER_DATA_DIR;
+  return input;
+}
+
+/**
+ * Extract --user-data-dir= value from process.argv
+ */
+function getUserDataDirFromArgs() {
+  for (const arg of process.argv.slice(2)) {
+    if (arg.startsWith("--user-data-dir=")) {
+      return arg.substring("--user-data-dir=".length);
+    }
+  }
+  return null;
+}
+
 async function startDaemon() {
+  const userDataDirInput = getUserDataDirFromArgs();
+  const userDataDir = resolveUserDataDir(userDataDirInput);
+
   console.log("Starting browser daemon...");
+  console.log(
+    `User data dir input: ${userDataDirInput || "(empty → isolated)"}`,
+  );
+  console.log(`Resolved user data dir: ${userDataDir}`);
 
   try {
-    const context = await chromium.launchPersistentContext(SHARED_PROFILE, {
+    const context = await chromium.launchPersistentContext(userDataDir, {
       headless: false,
       channel: "chrome",
       args: [

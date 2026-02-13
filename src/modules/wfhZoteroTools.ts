@@ -433,6 +433,10 @@ export class WfhZoteroToolsFactory {
       if (citekey) {
         args.push(`@${citekey}`);
       }
+      const chromeUserDataDir = getPref("chromeUserDataDir");
+      if (chromeUserDataDir) {
+        args.push(`--user-data-dir=${chromeUserDataDir}`);
+      }
 
       ztoolkit.log(`WfhZoteroTools: Running ${provider} with args:`, args);
 

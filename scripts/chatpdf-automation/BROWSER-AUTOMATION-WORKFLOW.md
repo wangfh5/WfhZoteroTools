@@ -30,12 +30,12 @@ Coding Agent 与人类协作，基于 Playwright 及其命令行工具（CLI）�
 
 ### 2. 复用已有登录态
 
-使用 `--persistent --profile=<path>` 参数复用脚本中 `launchPersistentContext` 所用的同一个 profile 目录，免去手动登录：
+使用 `--persistent --user-data-dir=<path>` 参数复用脚本中 `launchPersistentContext` 所用的同一个用户数据目录，免去手动登录：
 
 ```bash
 playwright-cli -s=gemini open https://gemini.google.com/app \
   --persistent \
-  --profile=/Users/ssqc/Library/Caches/ms-playwright/daemon/chatpdf-shared-profile \
+  --user-data-dir=/Users/ssqc/Library/Caches/ms-playwright/daemon/chatpdf-shared-profile \
   --browser=chrome
 ```
 
@@ -65,7 +65,7 @@ Agent 在读取 YAML 文件时，不仅看到了 `ref`，还读取到了背后�
 
 ### 2. 最佳实践
 
-- **Profile 复用**：通过 `launchPersistentContext` 共享 CLI 阶段的登录状态，实现免密登录。
+- **User Data Dir 复用**：通过 `launchPersistentContext` 共享 CLI 阶段的登录状态，实现免密登录。
 - **输入策略选择**：
   - `fill()`：用于快速、原子化的输入。
   - `pressSequentially()` / `type()`：用于模拟真实按键，触发某些对输入极其敏感的 UI 监听器。

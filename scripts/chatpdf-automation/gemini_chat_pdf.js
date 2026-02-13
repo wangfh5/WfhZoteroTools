@@ -6,14 +6,17 @@ const { getOrLaunchBrowser, disconnectAndExit } = require("./browser_helper");
 function parseArgs(argv) {
   const args = [];
   let outputFile = null;
+  let userDataDir = null;
   for (const arg of argv) {
     if (arg.startsWith("--output=")) {
       outputFile = arg.substring("--output=".length);
+    } else if (arg.startsWith("--user-data-dir=")) {
+      userDataDir = arg.substring("--user-data-dir=".length);
     } else {
       args.push(arg);
     }
   }
-  return { args, outputFile };
+  return { args, outputFile, userDataDir };
 }
 
 /**
@@ -153,6 +156,7 @@ async function chatWithGemini(
   chatName,
   existingPage,
   outputFile = null,
+  userDataDir = null,
 ) {
   if (!pdfPath) {
     console.error("Usage: node gemini_chat_pdf.js <path-to-pdf> [chat-name]");
@@ -173,7 +177,7 @@ async function chatWithGemini(
   const promptText = fs.readFileSync(promptFilePath, "utf-8").trim();
 
   console.log("正在启动浏览器 (Gemini)...");
-  const page = existingPage || (await getOrLaunchBrowser()).page;
+  const page = existingPage || (await getOrLaunchBrowser(userDataDir)).page;
 
   try {
     console.log("正在访问 Gemini...");
@@ -310,10 +314,10 @@ async function chatWithGemini(
 }
 
 if (require.main === module) {
-  const { args, outputFile } = parseArgs(process.argv.slice(2));
+  const { args, outputFile, userDataDir } = parseArgs(process.argv.slice(2));
   const target = args[0];
   const chatName = args[1];
-  chatWithGemini(target, chatName, null, outputFile)
+  chatWithGemini(target, chatName, null, outputFile, userDataDir)
     .then(() => disconnectAndExit(0))
     .catch(() => disconnectAndExit(1));
 }

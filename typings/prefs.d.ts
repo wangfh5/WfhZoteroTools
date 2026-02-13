@@ -11,6 +11,7 @@ declare namespace _ZoteroTypes {
       "input": string;
       "chatpdfScriptsDir": string;
       "nodePath": string;
+      "chromeUserDataDir": string;
     };
   }
 }
