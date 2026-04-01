@@ -177,6 +177,60 @@ async function isVisible(locator, timeout = 1000) {
   }
 }
 
+/**
+ * Check if a visible menuitem matching the regex exists in the DOM.
+ * Uses evaluate() because Radix portal menuitems may not be visible to
+ * Playwright's getByRole() when connected via CDP.
+ */
+async function hasVisibleMenuItem(page, pattern, timeout = 2000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const found = await page.evaluate((reSource) => {
+      const re = new RegExp(reSource);
+      const items = document.querySelectorAll('[role="menuitem"]');
+      for (const item of items) {
+        const text = item.textContent?.trim() || "";
+        const label = item.getAttribute("aria-label") || "";
+        if (
+          re.test(text) ||
+          re.test(label) ||
+          re.test(text.replace(/\s+/g, " "))
+        ) {
+          return true;
+        }
+      }
+      return false;
+    }, pattern.source);
+    if (found) return true;
+    await page.waitForTimeout(200);
+  }
+  return false;
+}
+
+/**
+ * Click a menuitem matching the regex using evaluate() — bypasses the
+ * Playwright role locator which may miss Radix portal items over CDP.
+ */
+async function clickMenuItem(page, pattern) {
+  return page.evaluate((reSource) => {
+    const re = new RegExp(reSource);
+    const items = document.querySelectorAll('[role="menuitem"]');
+    for (const item of items) {
+      const text = item.textContent?.trim() || "";
+      const label = item.getAttribute("aria-label") || "";
+      if (
+        re.test(text) ||
+        re.test(label) ||
+        re.test(text.replace(/\s+/g, " "))
+      ) {
+        item.click();
+        return true;
+      }
+    }
+    return false;
+  }, pattern.source);
+}
+
 async function openRenameMenuForCurrentChat(page) {
   const startUrl = page.url();
   console.log(`重命名前 URL: ${startUrl}`);
@@ -240,15 +294,13 @@ async function openRenameMenuForCurrentChat(page) {
       await currentChatLink.hover();
       const optionsBtn = currentChatLink
         .locator(
-          'button[aria-label="Open conversation options"], button[aria-label="打开对话操作菜单"]',
+          'button[aria-label*="Open conversation options"], button[aria-label*="打开对话操作菜单"]',
         )
         .first();
       if (await isVisible(optionsBtn, 2000)) {
         await optionsBtn.click({ force: true, timeout: 3000 });
-        const renameMenu = page
-          .getByRole("menuitem", { name: /Rename|重命名/i })
-          .first();
-        if (await isVisible(renameMenu, 2000)) {
+        const hasRename = await hasVisibleMenuItem(page, /Rename|重命名/);
+        if (hasRename) {
           console.log(`已定位当前会话并打开 options: /c/${currentChatId}`);
           console.log(`打开菜单后 URL: ${page.url()}`);
           return;
@@ -271,7 +323,7 @@ async function openRenameMenuForCurrentChat(page) {
 
     const optionsBtn = chatLink
       .locator(
-        'button[aria-label="Open conversation options"], button[aria-label="打开对话操作菜单"]',
+        'button[aria-label*="Open conversation options"], button[aria-label*="打开对话操作菜单"]',
       )
       .first();
     if (!(await isVisible(optionsBtn, 1500))) {
@@ -281,19 +333,17 @@ async function openRenameMenuForCurrentChat(page) {
 
     await optionsBtn.click({ force: true, timeout: 3000 });
 
-    const renameMenu = page
-      .getByRole("menuitem", { name: /Rename|重命名/i })
-      .first();
-    if (!(await isVisible(renameMenu, 2000))) {
+    const hasRename = await hasVisibleMenuItem(page, /Rename|重命名/);
+    if (!hasRename) {
       console.log(`第 ${index + 1} 条聊天未打开会话菜单，尝试关闭并继续`);
       await page.keyboard.press("Escape");
       continue;
     }
 
-    const unpinMenu = page
-      .getByRole("menuitem", { name: /Unpin chat|取消置顶|取消固定|取消钉住/i })
-      .first();
-    const isPinned = await isVisible(unpinMenu, 400);
+    const isPinned = await hasVisibleMenuItem(
+      page,
+      /Unpin chat|取消置顶|取消固定|取消钉住/,
+    );
     console.log(`第 ${index + 1} 条聊天是否置顶: ${isPinned}`);
 
     if (isPinned) {
@@ -322,15 +372,15 @@ async function openRenameMenuForCurrentChat(page) {
 
     const optionsBtn = targetLink
       .locator(
-        'button[aria-label="Open conversation options"], button[aria-label="打开对话操作菜单"]',
+        'button[aria-label*="Open conversation options"], button[aria-label*="打开对话操作菜单"]',
       )
       .first();
     await optionsBtn.waitFor({ state: "visible", timeout: 5000 });
     await optionsBtn.click({ force: true, timeout: 3000 });
-    const renameMenu = page
-      .getByRole("menuitem", { name: /Rename|重命名/i })
-      .first();
-    await renameMenu.waitFor({ state: "visible", timeout: 5000 });
+    const hasRename = await hasVisibleMenuItem(page, /Rename|重命名/, 5000);
+    if (!hasRename) {
+      throw new Error("兜底策略：点击 options 后未出现 Rename 菜单项");
+    }
     console.log(`已按兜底策略选中第 ${fallbackIndex + 1} 条聊天`);
     return;
   }
@@ -423,24 +473,22 @@ async function chatWithChatGPT(
       await openRenameMenuForCurrentChat(page);
       await page.waitForTimeout(400);
 
-      const renameBtn = page
-        .getByRole("menuitem", { name: /Rename|重命名/i })
-        .first();
-      await renameBtn.waitFor({ state: "visible", timeout: 5000 });
       console.log(`点击 Rename 前 URL: ${page.url()}`);
-      await renameBtn.click({ force: true });
+      const renameClicked = await clickMenuItem(page, /^Rename$|^重命名$/);
+      if (!renameClicked) {
+        throw new Error("未找到 Rename 菜单项");
+      }
       console.log(`点击 Rename 后 URL: ${page.url()}`);
-      await page.waitForTimeout(300);
+      await page.waitForTimeout(500);
 
       const newName =
         chatName ||
         path.basename(absolutePdfPath, path.extname(absolutePdfPath));
       console.log(`正在写入新名称: ${newName}`);
 
+      // ChatGPT 2026-04: inline rename uses input[name="title-editor"] (no dialog)
       const renameInput = page
-        .locator(
-          'input[aria-label*="Rename"], input[placeholder*="Rename"], [role="dialog"] input, nav input',
-        )
+        .locator('input[name="title-editor"], nav input[type="text"]')
         .first();
       console.log(`rename input count: ${await renameInput.count()}`);
       await renameInput.waitFor({ state: "visible", timeout: 5000 });
@@ -448,16 +496,7 @@ async function chatWithChatGPT(
       await renameInput.fill("");
       await renameInput.fill(newName);
       await page.waitForTimeout(200);
-
-      const confirmBtn = page
-        .locator('[role="dialog"] button')
-        .filter({ hasText: /保存|Save|重命名|Rename/i })
-        .first();
-      if ((await confirmBtn.count()) > 0) {
-        await confirmBtn.click({ force: true });
-      } else {
-        await renameInput.press("Enter");
-      }
+      await renameInput.press("Enter");
 
       console.log(`✅ 重命名成功: ${newName}`);
     } catch (e) {
