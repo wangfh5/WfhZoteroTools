@@ -21,3 +21,5 @@ chatgpt_automation.log
 # Cursor
 .cursor/.hook-state/
 .cursor/settings.local.json
+
+.claude/.hook-state/
