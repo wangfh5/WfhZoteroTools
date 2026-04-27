@@ -30,13 +30,19 @@ Coding Agent 与人类协作，基于 Playwright 及其命令行工具（CLI）�
 
 ### 2. 复用已有登录态
 
-使用 `--persistent --user-data-dir=<path>` 参数复用脚本中 `launchPersistentContext` 所用的同一个用户数据目录，免去手动登录：
+使用 `--profile=<path>` 参数复用脚本中 `launchPersistentContext` 所用的同一个用户数据目录，免去手动登录（注意：旧版文档写的 `--user-data-dir=` 已不再被识别）：
 
 ```bash
 playwright-cli -s=gemini open https://gemini.google.com/app \
-  --persistent \
-  --user-data-dir=/Users/ssqc/Library/Caches/ms-playwright/daemon/chatpdf-shared-profile \
+  --headed \
+  --profile=/Users/ssqc/Library/Caches/ms-playwright/daemon/chatpdf-shared-profile \
   --browser=chrome
+```
+
+如果端口 9222 上已有守护进程占用同一 user-data-dir，启动会失败 —— 先释放：
+
+```bash
+lsof -i :9222 | tail -n +2 | awk '{print $2}' | xargs -r kill
 ```
 
 ### 3. 原子化验证
@@ -125,6 +131,36 @@ SPA 网站（尤其是 Gemini、ChatGPT）会频繁更新 UI。当脚本失败�
 
 ---
 
+## 实战参考：ChatGPT 稳定选择器 (2026-04-27)
+
+通过探索脚本确认的选择器：
+
+| 操作           | 选择器                                                                | 备注                                                                  |
+| -------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| 模型选择器     | `button.__composer-pill`（首个）                                      | **无 data-testid / aria-label**；按钮文本就是当前模型名（Thinking/Instant/Model） |
+| 模型菜单项     | `getByRole('menuitemradio', { name: /Thinking/i })`                   | role 由 `menuitem` 改为 `menuitemradio`，name 形如 "Thinking For complex questions" |
+| 思考强度子菜单 | `button[aria-label="Open thinking effort menu"]`                      | 仅当模型已是 Thinking 时出现，CSS 类 `__composer-pill-trigger`         |
+| 上传菜单触发   | `[data-testid="composer-plus-btn"]`                                   | aria-label="Add files and more"，CSS 类 `composer-btn`                |
+| 上传文件菜单项 | `getByRole('menuitem', { name: /Add photos & files/i })`              | name 含快捷键 "Command U"，子串正则仍可匹配                            |
+| 提示输入框     | `#prompt-textarea` (contenteditable div, ProseMirror)                 | aria-label="Chat with ChatGPT"                                        |
+| 发送按钮       | `[data-testid="send-button"]`                                         | aria-label 改为 "Send prompt"，type=submit；输入文本前 unmount         |
+| 侧栏会话操作   | `button[data-conversation-options-trigger="<chatId>"]`（**最稳**）/ `[data-testid="history-item-{N}-options"]` / `aria-label*="Open conversation options"` | `data-conversation-options-trigger` 直接绑会话 ID, 是定位"当前会话"options 按钮的金标准；位序 testid 在置顶项上为 `undefined-options` |
+| Rename 菜单项  | text="Rename" / "重命名"                                              | **无 data-testid**，只能文本匹配；同菜单 Share/Delete 才有 testid      |
+| 重命名输入框   | `input[name="title-editor"]`                                          | 内联编辑，不弹 dialog；`Enter` 保存、`Escape` 取消                     |
+| 停止按钮       | `button[aria-label*="Stop"]` / `[aria-label*="停止"]`                 | 生成中可见；用于检测回答状态                                          |
+
+### 已知变化（对比 2026-04-01）
+
+- **模型按钮**：旧 `data-testid="model-switcher-dropdown-button"` 已**完全消失**，且新按钮无 testid 也无 aria-label。锚点只剩 CSS 类 `__composer-pill`（注意 `__composer-pill-trigger` 是相邻的"思考强度"按钮，不要选错）。
+- **模型菜单项 role 变化**：`menuitem` → `menuitemradio`，旧的 `getByRole('menuitem', { name: /Thinking/ })` 在 strict role 匹配下不一定命中，必须用 `menuitemradio`。
+- **侧栏 options 按钮**：新增 `data-testid="history-item-{N}-options"`，比 aria-label 子串更稳定；但置顶项 testid 异常（`undefined-options`），按位序检索时仍要靠菜单中是否含 "Unpin chat" 来识别置顶。
+- **冷启动模型按钮文字**：首次访问 `https://chatgpt.com/` 时，按钮文字可能是占位文本 "Model"（即便上次保存为 Thinking）。逻辑判定 "已是 Thinking" 时不能假设 profile 一定保留状态。
+- **页面布局抖动**：首页"Create an image / Write or edit / Look something up"建议块异步水合，造成 composer 区域 layout shift。Playwright `click()` 默认的 stable 检查会超时——对 composer 内按钮统一使用 `click({ force: true, timeout: 5000 })`。
+- **侧栏会话链接是 `<a>` 包裹按钮**：直接对 `nav a button[data-testid$="-options"]` 调用 Playwright `click()` 容易触发 `<a>` 导航并超时。最稳做法是**拿到会话 ID 后用 `page.evaluate(() => document.querySelector("button[data-conversation-options-trigger='<id>']").click())`**，绕过 Playwright 的 actionability + 不会冒泡到链接。
+- **重命名兜底逻辑被移除**：旧版在 URL 匹配失败时按"第 N 条非置顶聊天"位序兜底，会**改错老会话标题**。新版严格按当前 URL 中的会话 ID 在侧栏轮询匹配（最长 30s），找不到就抛错。
+
+---
+
 ## 总结：开发步骤
 
 启动一个新的自动化任务时，遵循以下步骤：
@@ -138,4 +174,4 @@ SPA 网站（尤其是 Gemini、ChatGPT）会频繁更新 UI。当脚本失败�
 
 ---
 
-**最后更新**: 2026-02-12
+**最后更新**: 2026-04-27

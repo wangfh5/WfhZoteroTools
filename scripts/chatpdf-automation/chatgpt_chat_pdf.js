@@ -19,11 +19,6 @@ function parseArgs(argv) {
   return { args, outputFile, userDataDir };
 }
 
-const PINNED_CHAT_COUNT_FALLBACK = Math.max(
-  0,
-  Number.parseInt(process.env.CHATGPT_PINNED_COUNT || "2", 10) || 0,
-);
-
 async function waitForChatGPTSendButton(page, timeoutMs = 90000) {
   const deadline = Date.now() + timeoutMs;
   const selectors = [
@@ -235,6 +230,12 @@ async function openRenameMenuForCurrentChat(page) {
   const startUrl = page.url();
   console.log(`重命名前 URL: ${startUrl}`);
   const currentChatIdMatch = startUrl.match(/\/c\/([a-z0-9-]+)/i);
+  if (!currentChatIdMatch) {
+    throw new Error(
+      `当前 URL 不含会话 ID（${startUrl}），无法安全重命名。终止以避免改错老会话。`,
+    );
+  }
+  const currentChatId = currentChatIdMatch[1];
 
   const openSidebarBtn = page
     .getByRole("button", { name: /Open sidebar|打开侧边栏/i })
@@ -251,145 +252,76 @@ async function openRenameMenuForCurrentChat(page) {
     }
   }
 
-  const allChatLinks = page.locator('nav a[href^="/c/"]');
-  const totalChatCount = await allChatLinks.count();
-  if (totalChatCount === 0) {
-    throw new Error("侧边栏里找不到任何聊天链接");
-  }
-  console.log(`侧边栏聊天总数: ${totalChatCount}`);
-
-  const firstChatLink = allChatLinks.first();
-  await firstChatLink.scrollIntoViewIfNeeded();
-
-  const scrollResult = await firstChatLink.evaluate((el) => {
-    let parent = el.parentElement;
-    while (parent) {
-      const style = window.getComputedStyle(parent);
-      const scrollable =
-        (style.overflowY === "auto" || style.overflowY === "scroll") &&
-        parent.scrollHeight > parent.clientHeight;
-      if (scrollable) {
-        parent.scrollTop += 140;
-        return {
-          found: true,
-          top: parent.scrollTop,
-        };
-      }
-      parent = parent.parentElement;
+  // 侧栏在首轮回答完成后还会异步刷新一段时间。轮询直到当前会话链接出现，
+  // 最多等待 30s。绝不退回到"按位序选择"——会改错其他老会话。
+  const currentChatLink = page
+    .locator(`nav a[href*="/c/${currentChatId}"]`)
+    .first();
+  const POLL_DEADLINE = Date.now() + 30000;
+  let linkSeen = false;
+  while (Date.now() < POLL_DEADLINE) {
+    if (await isVisible(currentChatLink, 1000)) {
+      linkSeen = true;
+      break;
     }
-    return { found: false, top: -1 };
-  });
-  console.log(`聊天列表滚动结果: ${JSON.stringify(scrollResult)}`);
-  await page.waitForTimeout(250);
-
-  if (currentChatIdMatch) {
-    const currentChatId = currentChatIdMatch[1];
-    const currentChatLink = page
-      .locator(
-        `nav a[href="/c/${currentChatId}"], nav a[href*="/c/${currentChatId}"]`,
-      )
-      .first();
-    if (await isVisible(currentChatLink, 2500)) {
-      await currentChatLink.scrollIntoViewIfNeeded();
-      await currentChatLink.hover();
-      const optionsBtn = currentChatLink
-        .locator(
-          'button[aria-label*="Open conversation options"], button[aria-label*="打开对话操作菜单"]',
-        )
-        .first();
-      if (await isVisible(optionsBtn, 2000)) {
-        await optionsBtn.click({ force: true, timeout: 3000 });
-        const hasRename = await hasVisibleMenuItem(page, /Rename|重命名/);
-        if (hasRename) {
-          console.log(`已定位当前会话并打开 options: /c/${currentChatId}`);
-          console.log(`打开菜单后 URL: ${page.url()}`);
-          return;
+    // 滚回侧栏顶部 — 新会话出现在 Recents 顶部
+    await page
+      .evaluate(() => {
+        const link = document.querySelector('nav a[href^="/c/"]');
+        let p = link?.parentElement;
+        while (p) {
+          const s = window.getComputedStyle(p);
+          if (
+            (s.overflowY === "auto" || s.overflowY === "scroll") &&
+            p.scrollHeight > p.clientHeight
+          ) {
+            p.scrollTop = 0;
+            return;
+          }
+          p = p.parentElement;
         }
-        await page.keyboard.press("Escape");
-      }
-    } else {
-      console.log(
-        `未在侧栏中定位到当前会话 /c/${currentChatId}，转入非置顶探测`,
-      );
-    }
+      })
+      .catch(() => {});
+    await page.waitForTimeout(800);
   }
-
-  const maxProbe = Math.min(totalChatCount, 12);
-  let foundNonPinned = false;
-  for (let index = 0; index < maxProbe; index += 1) {
-    const chatLink = allChatLinks.nth(index);
-    await chatLink.scrollIntoViewIfNeeded();
-    await chatLink.hover();
-
-    const optionsBtn = chatLink
-      .locator(
-        'button[aria-label*="Open conversation options"], button[aria-label*="打开对话操作菜单"]',
-      )
-      .first();
-    if (!(await isVisible(optionsBtn, 1500))) {
-      console.log(`第 ${index + 1} 条聊天未出现 options 按钮，跳过`);
-      continue;
-    }
-
-    await optionsBtn.click({ force: true, timeout: 3000 });
-
-    const hasRename = await hasVisibleMenuItem(page, /Rename|重命名/);
-    if (!hasRename) {
-      console.log(`第 ${index + 1} 条聊天未打开会话菜单，尝试关闭并继续`);
-      await page.keyboard.press("Escape");
-      continue;
-    }
-
-    const isPinned = await hasVisibleMenuItem(
-      page,
-      /Unpin chat|取消置顶|取消固定|取消钉住/,
-    );
-    console.log(`第 ${index + 1} 条聊天是否置顶: ${isPinned}`);
-
-    if (isPinned) {
-      await page.keyboard.press("Escape");
-      await page.waitForTimeout(120);
-      continue;
-    }
-
-    foundNonPinned = true;
-    console.log(`选中第 ${index + 1} 条非置顶聊天，准备重命名`);
-    console.log(`非置顶探测后 URL: ${page.url()}`);
-    return;
-  }
-
-  if (
-    PINNED_CHAT_COUNT_FALLBACK > 0 &&
-    totalChatCount > PINNED_CHAT_COUNT_FALLBACK
-  ) {
-    const fallbackIndex = PINNED_CHAT_COUNT_FALLBACK;
-    console.log(
-      `动态探测失败，使用兜底置顶数 ${PINNED_CHAT_COUNT_FALLBACK}，目标第 ${fallbackIndex + 1} 条`,
-    );
-    const targetLink = allChatLinks.nth(fallbackIndex);
-    await targetLink.scrollIntoViewIfNeeded();
-    await targetLink.hover();
-
-    const optionsBtn = targetLink
-      .locator(
-        'button[aria-label*="Open conversation options"], button[aria-label*="打开对话操作菜单"]',
-      )
-      .first();
-    await optionsBtn.waitFor({ state: "visible", timeout: 5000 });
-    await optionsBtn.click({ force: true, timeout: 3000 });
-    const hasRename = await hasVisibleMenuItem(page, /Rename|重命名/, 5000);
-    if (!hasRename) {
-      throw new Error("兜底策略：点击 options 后未出现 Rename 菜单项");
-    }
-    console.log(`已按兜底策略选中第 ${fallbackIndex + 1} 条聊天`);
-    return;
-  }
-
-  if (!foundNonPinned) {
+  if (!linkSeen) {
     throw new Error(
-      "未找到可重命名的非置顶聊天。可设置 CHATGPT_PINNED_COUNT 作为兜底。",
+      `30s 内未在侧栏中定位到当前会话 /c/${currentChatId}，已停止。请检查侧栏渲染或登录态。`,
     );
   }
+
+  await currentChatLink.scrollIntoViewIfNeeded();
+  await currentChatLink.hover();
+
+  // 用 data-conversation-options-trigger 属性直接选 options 按钮, 绕过 <a> 包裹层 ——
+  // Playwright .click(force:true) 在 <a> 内部按钮上仍可能触发链接导航并超时;
+  // 直接 DOM click 既不冒泡导航, 也不卡 actionability.
+  const clicked = await page.evaluate((chatId) => {
+    const selectors = [
+      `button[data-conversation-options-trigger="${chatId}"]`,
+      `[data-testid$="-options"][aria-label*="${chatId}"]`,
+    ];
+    for (const sel of selectors) {
+      const btn = document.querySelector(sel);
+      if (btn) {
+        btn.click();
+        return sel;
+      }
+    }
+    return null;
+  }, currentChatId);
+  if (!clicked) {
+    throw new Error(
+      `未能在 DOM 中找到当前会话 /c/${currentChatId} 的 options 按钮`,
+    );
+  }
+  console.log(`已 DOM-click options 按钮: ${clicked}`);
+
+  const hasRename = await hasVisibleMenuItem(page, /Rename|重命名/, 5000);
+  if (!hasRename) {
+    throw new Error("点击会话 options 后未出现 Rename 菜单项");
+  }
+  console.log(`已定位当前会话并打开 options: /c/${currentChatId}`);
 }
 
 async function chatWithChatGPT(
@@ -425,21 +357,37 @@ async function chatWithChatGPT(
     await page.goto("https://chatgpt.com/");
 
     // 1. 切换模式为 Thinking
+    // 2026-04-27: 模型按钮已无 data-testid / aria-label, 锚点改为 CSS 类
+    // `__composer-pill`(模型 pill); 菜单项 role 由 menuitem 改为 menuitemradio.
     console.log("设置模型为 Thinking...");
     await page.waitForSelector('[data-testid="composer-plus-btn"]');
-    const modelBtn = page.getByTestId("model-switcher-dropdown-button");
-    if (!(await modelBtn.innerText()).includes("Thinking")) {
-      await modelBtn.click();
-      await page.getByRole("menuitem", { name: /Thinking/i }).click();
-      await page.waitForTimeout(1000);
+    // 等首页"Create an image / Write or edit / Look something up"建议块完成水合,
+    // 否则 composer 区域仍在 layout shift, button.click 的 stable 检查会超时.
+    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+    const modelBtn = page.locator("button.__composer-pill").first();
+    await modelBtn.waitFor({ state: "visible", timeout: 10000 });
+    const currentModelText = (await modelBtn.innerText()).trim();
+    console.log(`当前模型: ${currentModelText}`);
+    if (!/thinking/i.test(currentModelText)) {
+      await modelBtn.click({ force: true, timeout: 5000 });
+      const thinkingOption = page
+        .getByRole("menuitemradio", { name: /Thinking/i })
+        .first();
+      await thinkingOption.waitFor({ state: "visible", timeout: 5000 });
+      await thinkingOption.click({ force: true, timeout: 5000 });
+      await page.waitForTimeout(800);
     }
 
     // 2. 上传文件
     console.log("正在上传文件...");
-    await page.getByTestId("composer-plus-btn").click();
+    await page
+      .getByTestId("composer-plus-btn")
+      .click({ force: true, timeout: 5000 });
     const [fileChooser] = await Promise.all([
       page.waitForEvent("filechooser"),
-      page.getByRole("menuitem", { name: /Add photos & files/i }).click(),
+      page
+        .getByRole("menuitem", { name: /Add photos & files/i })
+        .click({ force: true, timeout: 5000 }),
     ]);
     await fileChooser.setFiles(absolutePdfPath);
     await page.waitForTimeout(3000);
