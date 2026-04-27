@@ -135,19 +135,19 @@ SPA 网站（尤其是 Gemini、ChatGPT）会频繁更新 UI。当脚本失败�
 
 通过探索脚本确认的选择器：
 
-| 操作           | 选择器                                                                | 备注                                                                  |
-| -------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| 模型选择器     | `button.__composer-pill`（首个）                                      | **无 data-testid / aria-label**；按钮文本就是当前模型名（Thinking/Instant/Model） |
-| 模型菜单项     | `getByRole('menuitemradio', { name: /Thinking/i })`                   | role 由 `menuitem` 改为 `menuitemradio`，name 形如 "Thinking For complex questions" |
-| 思考强度子菜单 | `button[aria-label="Open thinking effort menu"]`                      | 仅当模型已是 Thinking 时出现，CSS 类 `__composer-pill-trigger`         |
-| 上传菜单触发   | `[data-testid="composer-plus-btn"]`                                   | aria-label="Add files and more"，CSS 类 `composer-btn`                |
-| 上传文件菜单项 | `getByRole('menuitem', { name: /Add photos & files/i })`              | name 含快捷键 "Command U"，子串正则仍可匹配                            |
-| 提示输入框     | `#prompt-textarea` (contenteditable div, ProseMirror)                 | aria-label="Chat with ChatGPT"                                        |
-| 发送按钮       | `[data-testid="send-button"]`                                         | aria-label 改为 "Send prompt"，type=submit；输入文本前 unmount         |
+| 操作           | 选择器                                                                                                                                                     | 备注                                                                                                                                  |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| 模型选择器     | `button.__composer-pill`（首个）                                                                                                                           | **无 data-testid / aria-label**；按钮文本就是当前模型名（Thinking/Instant/Model）                                                     |
+| 模型菜单项     | `getByRole('menuitemradio', { name: /Thinking/i })`                                                                                                        | role 由 `menuitem` 改为 `menuitemradio`，name 形如 "Thinking For complex questions"                                                   |
+| 思考强度子菜单 | `button[aria-label="Open thinking effort menu"]`                                                                                                           | 仅当模型已是 Thinking 时出现，CSS 类 `__composer-pill-trigger`                                                                        |
+| 上传菜单触发   | `[data-testid="composer-plus-btn"]`                                                                                                                        | aria-label="Add files and more"，CSS 类 `composer-btn`                                                                                |
+| 上传文件菜单项 | `getByRole('menuitem', { name: /Add photos & files/i })`                                                                                                   | name 含快捷键 "Command U"，子串正则仍可匹配                                                                                           |
+| 提示输入框     | `#prompt-textarea` (contenteditable div, ProseMirror)                                                                                                      | aria-label="Chat with ChatGPT"                                                                                                        |
+| 发送按钮       | `[data-testid="send-button"]`                                                                                                                              | aria-label 改为 "Send prompt"，type=submit；输入文本前 unmount                                                                        |
 | 侧栏会话操作   | `button[data-conversation-options-trigger="<chatId>"]`（**最稳**）/ `[data-testid="history-item-{N}-options"]` / `aria-label*="Open conversation options"` | `data-conversation-options-trigger` 直接绑会话 ID, 是定位"当前会话"options 按钮的金标准；位序 testid 在置顶项上为 `undefined-options` |
-| Rename 菜单项  | text="Rename" / "重命名"                                              | **无 data-testid**，只能文本匹配；同菜单 Share/Delete 才有 testid      |
-| 重命名输入框   | `input[name="title-editor"]`                                          | 内联编辑，不弹 dialog；`Enter` 保存、`Escape` 取消                     |
-| 停止按钮       | `button[aria-label*="Stop"]` / `[aria-label*="停止"]`                 | 生成中可见；用于检测回答状态                                          |
+| Rename 菜单项  | text="Rename" / "重命名"                                                                                                                                   | **无 data-testid**，只能文本匹配；同菜单 Share/Delete 才有 testid                                                                     |
+| 重命名输入框   | `input[name="title-editor"]`                                                                                                                               | 内联编辑，不弹 dialog；`Enter` 保存、`Escape` 取消                                                                                    |
+| 停止按钮       | `button[aria-label*="Stop"]` / `[aria-label*="停止"]`                                                                                                      | 生成中可见；用于检测回答状态                                                                                                          |
 
 ### 已知变化（对比 2026-04-01）
 

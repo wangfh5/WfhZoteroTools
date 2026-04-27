@@ -363,7 +363,9 @@ async function chatWithChatGPT(
     await page.waitForSelector('[data-testid="composer-plus-btn"]');
     // 等首页"Create an image / Write or edit / Look something up"建议块完成水合,
     // 否则 composer 区域仍在 layout shift, button.click 的 stable 检查会超时.
-    await page.waitForLoadState("networkidle", { timeout: 10000 }).catch(() => {});
+    await page
+      .waitForLoadState("networkidle", { timeout: 10000 })
+      .catch(() => {});
     const modelBtn = page.locator("button.__composer-pill").first();
     await modelBtn.waitFor({ state: "visible", timeout: 10000 });
     const currentModelText = (await modelBtn.innerText()).trim();
