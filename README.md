@@ -30,6 +30,11 @@ WfhZoteroTools is a Zotero plugin that adds convenient file operations to both t
   - Success/error notifications for all operations
   - Bilingual support (English / Chinese)
 
+- **Local HTTP Lookup Endpoint**
+  - `POST /wfh/lookupIdentifier` lets external tools send a DOI, arXiv ID, PMID, or ISBN directly to Zotero
+  - Reuses Zotero's built-in "Add Item by Identifier" flow instead of manually assembling item metadata
+  - Can save into a specified collection, attach tags, add a child note, and optionally run an extra PDF lookup pass
+
 ## Installation
 
 This plugin requires building from source. Installation is split into two tiers depending on which features you need:
@@ -176,6 +181,15 @@ zotero-plugin-wfh/
 ```
 
 ## How It Works
+
+### Local HTTP Lookup Endpoint
+
+The plugin registers a local Zotero server endpoint at `POST /wfh/lookupIdentifier`.
+This is meant for external scripts or tools that want Zotero to perform its native identifier lookup workflow in-process.
+
+Instead of calling `/connector/saveItems` with partially assembled metadata, the endpoint hands the identifier to Zotero's own `Zotero.Translate.Search` pipeline, which is the same core path used by the toolbar "Add Item by Identifier" action. That means Zotero itself resolves metadata through search translators and can save attachments during translation. After import, the plugin can optionally run `Zotero.Attachments.addAvailableFile()` for another PDF lookup pass, and then apply tags, a child note, and a target collection.
+
+See [doc/lookup-server.md](doc/lookup-server.md) for request/response details and `curl` examples.
 
 ### PDF Reader Menu
 

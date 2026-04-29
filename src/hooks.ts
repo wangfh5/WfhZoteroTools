@@ -1,3 +1,4 @@
+import { LookupServerFactory } from "./modules/lookupServer";
 import { WfhZoteroToolsFactory } from "./modules/wfhZoteroTools";
 import { initLocale, getString } from "./utils/locale";
 import { createZToolkit } from "./utils/ztoolkit";
@@ -23,6 +24,7 @@ async function onStartup() {
   WfhZoteroToolsFactory.registerContextMenu(); // PDF reader right-click
   WfhZoteroToolsFactory.registerItemContextMenu(); // Library item right-click
   WfhZoteroToolsFactory.registerChatPDFMenu(); // ChatPDF submenu
+  LookupServerFactory.register(); // HTTP endpoint for identifier lookup
 
   await Promise.all(
     Zotero.getMainWindows().map((win) => onMainWindowLoad(win)),
@@ -47,6 +49,7 @@ async function onMainWindowUnload(win: Window): Promise<void> {
 }
 
 function onShutdown(): void {
+  LookupServerFactory.unregister();
   ztoolkit.unregisterAll();
   addon.data.dialog?.window?.close();
   // Remove addon object
