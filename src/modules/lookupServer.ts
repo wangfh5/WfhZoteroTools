@@ -42,7 +42,8 @@ export class LookupServerFactory {
       init: LookupServerFactory.handle,
     };
 
-    (Zotero as any).Server.Endpoints[LookupServerFactory.endpointPath] = endpoint;
+    (Zotero as any).Server.Endpoints[LookupServerFactory.endpointPath] =
+      endpoint;
   }
 
   static unregister() {
@@ -65,8 +66,9 @@ export class LookupServerFactory {
         });
       }
 
-      const { libraryID, collections } =
-        LookupServerFactory.resolveTarget(request.collectionKey);
+      const { libraryID, collections } = LookupServerFactory.resolveTarget(
+        request.collectionKey,
+      );
       const lookupIdentifiers =
         LookupServerFactory.chunkPMIDIdentifiers(identifiers);
 
@@ -140,7 +142,11 @@ export class LookupServerFactory {
 
   static parseRequest(requestData: any): LookupRequest {
     if (!requestData || typeof requestData !== "object") {
-      throw new LookupEndpointError(400, "INVALID_REQUEST", "JSON body required");
+      throw new LookupEndpointError(
+        400,
+        "INVALID_REQUEST",
+        "JSON body required",
+      );
     }
 
     const data =
@@ -221,9 +227,7 @@ export class LookupServerFactory {
       collectionKey: data.collectionKey?.trim() || undefined,
       saveAttachments: data.saveAttachments ?? true,
       alsoFindPDF: data.alsoFindPDF ?? false,
-      tags: (data.tags ?? [])
-        .map((tag: string) => tag.trim())
-        .filter(Boolean),
+      tags: (data.tags ?? []).map((tag: string) => tag.trim()).filter(Boolean),
       note: data.note?.trim() || undefined,
     };
   }
@@ -406,7 +410,8 @@ export class LookupServerFactory {
     if (identifier.DOI) return identifier.DOI;
     if (identifier.ISBN) return identifier.ISBN;
     if (identifier.arXiv) return `arXiv:${identifier.arXiv}`;
-    if (Array.isArray(identifier.PMID)) return `PMID:${identifier.PMID.join(",")}`;
+    if (Array.isArray(identifier.PMID))
+      return `PMID:${identifier.PMID.join(",")}`;
     if (identifier.PMID) return `PMID:${identifier.PMID}`;
     if (identifier.adsBibcode) return identifier.adsBibcode;
     return JSON.stringify(identifier);
