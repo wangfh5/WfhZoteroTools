@@ -1,18 +1,10 @@
 const { chromium } = require("playwright");
-const { execSync, spawn } = require("child_process");
+const { spawn } = require("child_process");
 const path = require("path");
 const http = require("http");
 
 const CDP_PORT = 9222;
 const CDP_URL = `http://localhost:${CDP_PORT}`;
-
-function activateZotero() {
-  try {
-    execSync("osascript -e 'tell application \"Zotero\" to activate'");
-  } catch {
-    // ignore
-  }
-}
 
 /**
  * Check if CDP endpoint is available by making a simple HTTP request
@@ -49,18 +41,6 @@ async function waitForCDP(maxWaitMs = 30000) {
   }
 
   return false;
-}
-
-// Chrome steals focus multiple times during launch (window render, first page load, etc.)
-// especially under Stage Manager. Retry several times to fight back.
-function refocusZotero() {
-  const delays = [300, 800, 1500, 3000];
-  for (const ms of delays) {
-    setTimeout(activateZotero, ms);
-  }
-  return new Promise((resolve) =>
-    setTimeout(resolve, delays[delays.length - 1] + 200),
-  );
 }
 
 /**
@@ -127,7 +107,6 @@ async function getOrLaunchBrowser(userDataDir = null) {
     const page = await getOrCreatePage(context);
 
     console.log("已连接到守护进程浏览器。");
-    await refocusZotero();
 
     return { browser, context, page };
   }
