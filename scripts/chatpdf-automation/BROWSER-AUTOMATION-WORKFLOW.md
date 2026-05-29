@@ -103,25 +103,33 @@ SPA 网站（尤其是 Gemini、ChatGPT）会频繁更新 UI。当脚本失败�
 
 ---
 
-## 实战参考：Gemini 稳定选择器 (2026-02-12)
+## 实战参考：Gemini 稳定选择器 (2026-05-29)
 
 通过探索脚本确认的选择器（Gemini 3 时代）：
 
-| 操作           | 选择器                                                       | 备注                                                 |
-| -------------- | ------------------------------------------------------------ | ---------------------------------------------------- |
-| 模式选择器     | `[data-test-id="bard-mode-menu-button"]`                     | aria-label="打开模式选择器"，在输入区域内            |
-| Pro 模式选项   | `[data-test-id="bard-mode-option-pro"]`                      | role=menuitemradio, aria-checked 表示选中状态        |
-| 上传菜单触发   | `button[aria-label="打开文件上传菜单"]`                      | "+" 按钮，在输入区域左下角                           |
-| 上传文件菜单项 | `[data-test-id="local-images-files-uploader-button"]`        | role=menuitem，文本"上传文件"                        |
-| 提示输入框     | `getByRole('textbox', { name: /输入提示\|Enter a prompt/ })` | contenteditable div，aria-label="为 Gemini 输入提示" |
-| 发送按钮       | `button[aria-label="发送"]` 或 `button.send-button`          | **文本输入后才可见**，无 data-test-id                |
-| 对话操作菜单   | `[data-test-id="conversation-actions-menu-icon-button"]`     | 仅在对话页面出现                                     |
-| 重命名菜单项   | `[data-test-id="rename-button"]`                             | **新增 data-test-id**，不再需要文本匹配              |
-| 重命名输入框   | `[data-test-id="edit-title-input"]`                          | aria-label="重命名此对话"                            |
-| 重命名确认     | `[data-test-id="save-button"]`                               | 文本未改时按钮为 disabled                            |
-| 停止按钮       | `button[aria-label*="停止"]` / `button[aria-label*="Stop"]`  | 生成回答时出现                                       |
+| 操作           | 选择器                                                                    | 备注                                                                             |
+| -------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| 模式选择器     | `[data-test-id="bard-mode-menu-button"]`                                  | aria-label 含当前模式，如"打开模式选择器，当前模式为“Pro”"；在输入区域内         |
+| Pro 模式选项   | `page.locator('[data-test-id^="bard-mode-option-"]', { hasText: 'Pro' })` | **option 的 data-test-id 后缀已改为哈希**，只有 Pro 档文本含"Pro"；role=menuitem |
+| 思考等级子菜单 | `getByRole('menuitem', { name: /思考等级/ })`                             | 模式菜单内一行，**无 data-test-id**；hover 展开子菜单，其 label 含当前等级       |
+| 思考"扩展"选项 | `getByRole('menu').last().getByRole('menuitem', { name: /扩展/ })`        | hover 父行后子菜单是 DOM 中最后一个 `role=menu` 面板；限定在它内部避免撞父行     |
+| 上传菜单触发   | `button[aria-label="上传和工具"]`                                         | "+" 按钮，在输入区域左下角，旁有"New"角标                                        |
+| 上传文件菜单项 | `[data-test-id="local-images-files-uploader-button"]`                     | role=menuitem，文本"上传文件. 文档、数据、代码文件"                              |
+| 提示输入框     | `getByRole('textbox', { name: /输入提示\|Enter a prompt/ })`              | contenteditable div，aria-label="为 Gemini 输入提示"                             |
+| 发送按钮       | `button[aria-label="发送"]` 或 `button.send-button`                       | **文本输入后才可见**，无 data-test-id                                            |
+| 对话操作菜单   | `[data-test-id="conversation-actions-menu-icon-button"]`                  | 仅在对话页面出现                                                                 |
+| 重命名菜单项   | `[data-test-id="rename-button"]`                                          | data-test-id，不需要文本匹配                                                     |
+| 重命名输入框   | `[data-test-id="edit-title-input"]`                                       | aria-label="重命名此对话"                                                        |
+| 重命名确认     | `[data-test-id="save-button"]`                                            | 文本未改时按钮为 disabled                                                        |
+| 停止按钮       | `button[aria-label*="停止"]` / `button[aria-label*="Stop"]`               | 生成回答时出现                                                                   |
 
-### 已知变化（对比 2026-02-07）
+### 已知变化（对比 2026-02-12）
+
+- **模式选项 data-test-id 改为哈希**：旧 `[data-test-id="bard-mode-option-pro"]` 已失效，新值形如 `bard-mode-option-e6fa609c3fa255c0`（每档一个哈希后缀，不稳定）。改用 **稳定前缀 `bard-mode-option-` + 文本 `hasText:'Pro'`** 定位（三档 Flash-Lite / Flash / Pro 中只有 Pro 档文本含"Pro"）。option 的 role 也从 `menuitemradio` 变为 `menuitem`。
+- **新增「思考等级」子菜单**：模式菜单内多出一行"思考等级"（标准/扩展），**与模型档位是相互独立的设置**，两者各自持久化。无 data-test-id。hover 父行展开子菜单，子菜单是 DOM 中**最后一个 `role=menu` 面板**（嵌在主菜单里），点"扩展"即应用并关闭菜单。父行 label 也会反映当前等级（如"思考等级 扩展"），所以 `/扩展/` 若按页面全局匹配会同时命中父行和子项触发 strict-mode 冲突——**限定在 `getByRole('menu').last()` 子菜单内**可从结构上消除歧义（不再依赖父行文本判断）。设为 Pro 后该控件才稳定可用，所以**先选 Pro 再设思考等级**。最后用模式按钮 aria-label 校验结果：选中 Pro+扩展后变为"当前模式为“Pro 扩展”"（标准等级时仅为"Pro"）。校验发生在上传之前，缺少任一 token 即说明某步失败/UI 再次变更——此时**直接 throw 中止**（不浪费上传与生成；`both_chat_pdf.js` 用 `Promise.allSettled`，只失败 Gemini 分支，不影响 ChatGPT），而非沿用错误模式静默继续。
+- **上传触发按钮 aria-label 改名**：旧 `button[aria-label="打开文件上传菜单"]` → 新 `button[aria-label="上传和工具"]`（旁带"New"角标）。子菜单项 `data-test-id="local-images-files-uploader-button"` **保持不变**。
+
+### 历史变化（对比 2026-02-07）
 
 - **模式选择器**：旧选择器 `getByRole('button', { name: /快速|Pro/ })` 会匹配到页面顶部一个 disabled 的 "PRO" 徽章按钮，导致超时。新选择器使用 `data-test-id`，不会误匹配。
 - **模式选项**：新增 `data-test-id="bard-mode-option-*"`（快速/思考/pro），比 `getByRole('menuitemradio', { name: /Pro/ })` 更稳定。
@@ -174,4 +182,4 @@ SPA 网站（尤其是 Gemini、ChatGPT）会频繁更新 UI。当脚本失败�
 
 ---
 
-**最后更新**: 2026-04-27
+**最后更新**: 2026-05-29

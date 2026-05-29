@@ -183,24 +183,90 @@ async function chatWithGemini(
     console.log("正在访问 Gemini...");
     await page.goto("https://gemini.google.com/app");
 
-    // 1. 切换模式为 Pro
-    // 2026-02: Use stable data-test-id selectors. The old approach matched a disabled
-    // "PRO" pill button before reaching the real mode selector dropdown trigger.
+    // 1. 切换模式为 Pro，并将思考等级设为「扩展」
+    // 2026-05: Model options' data-test-id changed from stable names
+    // (bard-mode-option-pro) to hashed suffixes (bard-mode-option-<hash>), so the
+    // old selector matches nothing and the script stalled here. The menu trigger
+    // data-test-id="bard-mode-menu-button" is unchanged; match the option by the
+    // stable prefix + its visible "Pro" text (only the Pro tier contains "Pro").
     console.log("正在检查并切换至 Pro 模式...");
     const modeSelector = page.locator('[data-test-id="bard-mode-menu-button"]');
     await modeSelector.waitFor({ state: "visible" });
-    await modeSelector.click();
-    const proOption = page.locator('[data-test-id="bard-mode-option-pro"]');
-    await proOption.waitFor({ state: "visible", timeout: 5000 });
-    await proOption.click();
-    await page.waitForTimeout(1000);
+    const currentMode = (await modeSelector.getAttribute("aria-label")) || "";
+    if (currentMode.includes("Pro")) {
+      console.log("当前已是 Pro 模式，跳过切换。");
+    } else {
+      await modeSelector.click();
+      // Options only render in the DOM while the menu is open.
+      const proOption = page
+        .locator('[data-test-id^="bard-mode-option-"]', { hasText: "Pro" })
+        .first();
+      await proOption.waitFor({ state: "visible", timeout: 5000 });
+      await proOption.click();
+      await page.waitForTimeout(1000);
+    }
+
+    // 1b. 思考等级设为「扩展」(thinking level → Extended)
+    // The mode menu's 「思考等级」row has no data-test-id; it expands a submenu on
+    // hover, where 「扩展」applies and closes the menu. The row's own label shows the
+    // current level, so when it already reads 扩展 we skip the reopen/hover. Selecting
+    // Pro first ensures the thinking-level control is present.
+    console.log("正在设置思考等级为「扩展」...");
+    try {
+      await modeSelector.click();
+      const thinkingTrigger = page.getByRole("menuitem", { name: /思考等级/ });
+      await thinkingTrigger.waitFor({ state: "visible", timeout: 5000 });
+      const triggerText = (await thinkingTrigger.innerText()).replace(
+        /\s+/g,
+        " ",
+      );
+      if (triggerText.includes("扩展")) {
+        console.log("思考等级已是「扩展」，跳过设置。");
+        await page.keyboard.press("Escape");
+      } else {
+        await thinkingTrigger.hover();
+        await page.waitForTimeout(600);
+        // Scope to the hover-opened submenu (the last role=menu panel in the DOM)
+        // so 「扩展」can only match the submenu's option, never the parent row —
+        // this disambiguates structurally rather than relying on the text guard.
+        const extendedOption = page
+          .getByRole("menu")
+          .last()
+          .getByRole("menuitem", { name: /扩展/ });
+        await extendedOption.waitFor({ state: "visible", timeout: 5000 });
+        await extendedOption.click();
+        await page.waitForTimeout(800);
+      }
+    } catch (e) {
+      console.log("设置思考等级时出现异常，详情:", e.message);
+      await page.keyboard.press("Escape").catch(() => {});
+    }
+
+    // Verify the menu landed on Pro + 扩展. The mode button's aria-label reflects
+    // both (e.g. 当前模式为“Pro 扩展”; standard level shows just “Pro”). Selection
+    // happens before the upload, so a mismatch means the UI changed again — fail
+    // fast here rather than silently producing a conversation in the wrong mode.
+    // (In both_chat_pdf.js this runs under Promise.allSettled, so a throw fails only
+    // the Gemini branch and leaves ChatGPT untouched.)
+    const finalMode = (await modeSelector.getAttribute("aria-label")) || "";
+    if (!finalMode.includes("Pro") || !finalMode.includes("扩展")) {
+      throw new Error(
+        `模式校验失败：期望「Pro 扩展」，实际「${finalMode}」。` +
+          `Gemini UI 可能再次变更，请按 BROWSER-AUTOMATION-WORKFLOW.md 重新探索选择器。`,
+      );
+    }
+    console.log("✅ 已确认模式为「Pro 扩展」。");
 
     // 2. 上传文件
-    // 2026-02: The "+" button in the input area triggers the upload menu.
-    // aria-label="打开文件上传菜单" remains stable.
-    // Stable submenu item: data-test-id="local-images-files-uploader-button"
+    // 2026-05: The "+" button's aria-label changed from "打开文件上传菜单" to
+    // "上传和工具" (now labeled "上传和工具/New"); match either label for safety.
+    // The submenu item data-test-id="local-images-files-uploader-button" is unchanged.
     console.log("正在上传文件...");
-    const uploadTrigger = page.locator('button[aria-label="打开文件上传菜单"]');
+    const uploadTrigger = page
+      .locator(
+        'button[aria-label="上传和工具"], button[aria-label="打开文件上传菜单"]',
+      )
+      .first();
     await uploadTrigger.waitFor({ state: "visible", timeout: 10000 });
     await uploadTrigger.click();
 
