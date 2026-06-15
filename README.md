@@ -153,6 +153,9 @@ npm run start
 # Build for production
 npm run build
 
+# Run plugin tests
+npm test
+
 # Lint and format code
 npm run lint:fix
 ```
