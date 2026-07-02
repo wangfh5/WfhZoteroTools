@@ -323,9 +323,15 @@ export class WfhZoteroToolsFactory {
    */
   static async getCitekeyAndPdfPath(
     item: Zotero.Item,
-  ): Promise<{ citekey: string; pdfPath: string } | null> {
+  ): Promise<{
+    citekey: string;
+    pdfPath: string;
+    linkParentItem: Zotero.Item;
+  } | null> {
     let citekey = "";
     let pdfPath = "";
+    const linkParentItem =
+      await WfhZoteroToolsFactory.getChatPDFLinkParentItem(item);
 
     if (item.isRegularItem()) {
       // Get citekey from the parent item
@@ -355,21 +361,37 @@ export class WfhZoteroToolsFactory {
       const filePath = await item.getFilePathAsync();
       if (filePath) pdfPath = filePath;
       // Get citekey from parent item
-      const parentID = item.parentItemID;
-      if (parentID) {
-        const parent = await Zotero.Items.getAsync(parentID);
-        if (parent) {
-          try {
-            citekey = (parent.getField("citationKey") as string) || "";
-          } catch {
-            citekey = "";
-          }
+      if (linkParentItem) {
+        try {
+          citekey = (linkParentItem.getField("citationKey") as string) || "";
+        } catch {
+          citekey = "";
         }
       }
     }
 
     if (!pdfPath) return null;
-    return { citekey, pdfPath };
+    if (!linkParentItem) return null;
+    return { citekey, pdfPath, linkParentItem };
+  }
+
+  /**
+   * Resolve the regular Zotero item that should own generated ChatPDF links.
+   * If the user selected a child PDF attachment, links must be saved on the
+   * parent bibliographic item, not as a child of the attachment.
+   */
+  static async getChatPDFLinkParentItem(
+    item: Zotero.Item,
+  ): Promise<Zotero.Item | null> {
+    if (item.isRegularItem()) {
+      return item;
+    }
+    if (!item.isAttachment() || !item.parentItemID) {
+      return null;
+    }
+
+    const parent = await Zotero.Items.getAsync(item.parentItemID);
+    return parent && parent.isRegularItem() ? parent : null;
   }
 
   /**
@@ -393,7 +415,7 @@ export class WfhZoteroToolsFactory {
         return;
       }
 
-      const { citekey, pdfPath } = result;
+      const { citekey, pdfPath, linkParentItem } = result;
       const scriptNames: Record<string, string> = {
         chatgpt: "chatgpt_chat_pdf.js",
         gemini: "gemini_chat_pdf.js",
@@ -494,7 +516,7 @@ export class WfhZoteroToolsFactory {
                 data.url,
               );
               await WfhZoteroToolsFactory.saveChatPDFAttachment(
-                items[0],
+                linkParentItem,
                 data.provider,
                 data.url,
               );
@@ -523,8 +545,27 @@ export class WfhZoteroToolsFactory {
     provider: string,
     url: string,
   ) {
+    const linkParentItem =
+      await WfhZoteroToolsFactory.getChatPDFLinkParentItem(parentItem);
+    if (!linkParentItem) {
+      ztoolkit.log(
+        "WfhZoteroTools: No regular parent item for ChatPDF link",
+        {
+          selectedItemID: parentItem.id,
+          isAttachment: parentItem.isAttachment(),
+          parentItemID: parentItem.parentItemID,
+        },
+      );
+      WfhZoteroToolsFactory.showNotification(
+        "Failed to save chat link",
+        "error",
+      );
+      return;
+    }
+
     ztoolkit.log("WfhZoteroTools: saveChatPDFAttachment called", {
-      parentItemID: parentItem.id,
+      selectedItemID: parentItem.id,
+      linkParentItemID: linkParentItem.id,
       provider,
       url,
     });
@@ -533,12 +574,12 @@ export class WfhZoteroToolsFactory {
         provider === "chatgpt" ? "Chat with ChatGPT" : "Chat with Gemini";
       ztoolkit.log("WfhZoteroTools: Calling linkFromURL with:", {
         url,
-        parentItemID: parentItem.id,
+        parentItemID: linkParentItem.id,
         title,
       });
       await Zotero.Attachments.linkFromURL({
         url: url,
-        parentItemID: parentItem.id,
+        parentItemID: linkParentItem.id,
         title: title,
       });
       ztoolkit.log("WfhZoteroTools: linkFromURL completed successfully");

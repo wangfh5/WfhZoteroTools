@@ -139,17 +139,17 @@ SPA 网站（尤其是 Gemini、ChatGPT）会频繁更新 UI。当脚本失败�
 
 ---
 
-## 实战参考：ChatGPT 稳定选择器 (2026-04-27)
+## 实战参考：ChatGPT 稳定选择器 (2026-06-28)
 
 通过探索脚本确认的选择器：
 
 | 操作           | 选择器                                                                                                                                                     | 备注                                                                                                                                  |
 | -------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| 模型选择器     | `button.__composer-pill`（首个）                                                                                                                           | **无 data-testid / aria-label**；按钮文本就是当前模型名（Thinking/Instant/Model）                                                     |
-| 模型菜单项     | `getByRole('menuitemradio', { name: /Thinking/i })`                                                                                                        | role 由 `menuitem` 改为 `menuitemradio`，name 形如 "Thinking For complex questions"                                                   |
-| 思考强度子菜单 | `button[aria-label="Open thinking effort menu"]`                                                                                                           | 仅当模型已是 Thinking 时出现，CSS 类 `__composer-pill-trigger`                                                                        |
+| 智能等级按钮   | `button.__composer-pill`                                                                                                                                    | 输入框右侧 pill；**无 data-testid / aria-label**；按钮文本是当前等级，如 `Instant` / `Medium` / `High` / `Extra High` / `Pro`         |
+| 智能等级菜单   | `[data-testid="composer-intelligence-picker-content"] [role="menuitemradio"]`                                                                              | 点击 pill 后出现；菜单标题为 `Intelligence`；用精确文本匹配 `High`，否则 `/High/` 会误命中 `Extra High`                               |
+| GPT-5.5 子菜单 | `[data-testid="composer-intelligence-picker-content"] [role="menuitem"]`，文本 `GPT-5.5`                                                                   | 不是当前 chatpdf 工作流需要的等级；role 与上面的等级项不同                                                                            |
 | 上传菜单触发   | `[data-testid="composer-plus-btn"]`                                                                                                                        | aria-label="Add files and more"，CSS 类 `composer-btn`                                                                                |
-| 上传文件菜单项 | `getByRole('menuitem', { name: /Add photos & files/i })`                                                                                                   | name 含快捷键 "Command U"，子串正则仍可匹配                                                                                           |
+| 上传文件菜单项 | `.__menu-item` 精确文本 `Add photos & files`                                                                                                                | 2026-06 当前行无 `role=menuitem`；点击后仍通过 Playwright `filechooser` 事件设置 PDF                                                   |
 | 提示输入框     | `#prompt-textarea` (contenteditable div, ProseMirror)                                                                                                      | aria-label="Chat with ChatGPT"                                                                                                        |
 | 发送按钮       | `[data-testid="send-button"]`                                                                                                                              | aria-label 改为 "Send prompt"，type=submit；输入文本前 unmount                                                                        |
 | 侧栏会话操作   | `button[data-conversation-options-trigger="<chatId>"]`（**最稳**）/ `[data-testid="history-item-{N}-options"]` / `aria-label*="Open conversation options"` | `data-conversation-options-trigger` 直接绑会话 ID, 是定位"当前会话"options 按钮的金标准；位序 testid 在置顶项上为 `undefined-options` |
@@ -157,13 +157,20 @@ SPA 网站（尤其是 Gemini、ChatGPT）会频繁更新 UI。当脚本失败�
 | 重命名输入框   | `input[name="title-editor"]`                                                                                                                               | 内联编辑，不弹 dialog；`Enter` 保存、`Escape` 取消                                                                                    |
 | 停止按钮       | `button[aria-label*="Stop"]` / `[aria-label*="停止"]`                                                                                                      | 生成中可见；用于检测回答状态                                                                                                          |
 
-### 已知变化（对比 2026-04-01）
+### 已知变化（对比 2026-04-27）
 
-- **模型按钮**：旧 `data-testid="model-switcher-dropdown-button"` 已**完全消失**，且新按钮无 testid 也无 aria-label。锚点只剩 CSS 类 `__composer-pill`（注意 `__composer-pill-trigger` 是相邻的"思考强度"按钮，不要选错）。
-- **模型菜单项 role 变化**：`menuitem` → `menuitemradio`，旧的 `getByRole('menuitem', { name: /Thinking/ })` 在 strict role 匹配下不一定命中，必须用 `menuitemradio`。
+- **模型与思考强度合并为 Intelligence 菜单**：旧流程里先选 `Thinking` 模型、再点 `button[aria-label="Open thinking effort menu"]` 的做法已经不适用于当前 UI。当前输入框右侧只有一个 `button.__composer-pill`，点开后出现 `data-testid="composer-intelligence-picker-content"`，包含 `Instant` / `Medium` / `High` / `Extra High` / `Pro`。
+- **等级项 role 仍是 `menuitemradio`，但必须精确匹配文本**：`High` 与 `Extra High` 同时存在，不能用 `/High/` 全局模糊匹配；脚本应限定在 `composer-intelligence-picker-content` 内并用 exact text `High`。
+- **旧版 `Thinking` 路径只作为 fallback**：如果页面回滚到 2026-04 UI，再尝试 `getByRole('menuitemradio', { name: /Thinking/i })` 和旧的 `Open thinking effort menu`；当前 2026-06 UI 下不应先等待 `Thinking`，否则会卡在选择思考强度步骤。
+- **上传菜单项移除了 menuitem role**：`Add photos & files` 视觉上仍在 `composer-plus-btn` 菜单里，但真实 DOM 是 `div.__menu-item` + `tabindex=0`，不是 `role=menuitem`。不要再使用 `getByRole('menuitem', { name: /Add photos & files/i })`。
+
+### 历史变化（对比 2026-04-01）
+
+- **模型/思考强度按钮（2026-04）**：旧 `data-testid="model-switcher-dropdown-button"` 已**完全消失**，且当时的新按钮无 testid 也无 aria-label。锚点只剩 CSS 类 `__composer-pill`（注意 `__composer-pill-trigger` 是相邻的"思考强度"按钮，不要选错）。到 2026-06，`__composer-pill-trigger` 路径再次被新版 Intelligence 菜单替代。
+- **模型菜单项 role 变化（2026-04）**：`menuitem` → `menuitemradio`，旧的 `getByRole('menuitem', { name: /Thinking/ })` 在 strict role 匹配下不一定命中，必须用 `menuitemradio`。到 2026-06，主路径不再选择 `Thinking`，而是选择 `High` 智能等级。
 - **侧栏 options 按钮**：新增 `data-testid="history-item-{N}-options"`，比 aria-label 子串更稳定；但置顶项 testid 异常（`undefined-options`），按位序检索时仍要靠菜单中是否含 "Unpin chat" 来识别置顶。
-- **冷启动模型按钮文字**：首次访问 `https://chatgpt.com/` 时，按钮文字可能是占位文本 "Model"（即便上次保存为 Thinking）。逻辑判定 "已是 Thinking" 时不能假设 profile 一定保留状态。
-- **页面布局抖动**：首页"Create an image / Write or edit / Look something up"建议块异步水合，造成 composer 区域 layout shift。Playwright `click()` 默认的 stable 检查会超时——对 composer 内按钮统一使用 `click({ force: true, timeout: 5000 })`。
+- **冷启动模型按钮文字（2026-04）**：首次访问 `https://chatgpt.com/` 时，按钮文字可能是占位文本 "Model"（即便上次保存为 Thinking）。逻辑判定 "已是 Thinking" 时不能假设 profile 一定保留状态。
+- **页面布局抖动**：首页"Create an image / Write or edit / Look something up"建议块异步水合，造成 composer 区域 layout shift。Playwright `click()` 默认的 stable 检查会超时——对 composer 内按钮统一使用 `click({ force: true, timeout: 5000 })` 或 DOM click。
 - **侧栏会话链接是 `<a>` 包裹按钮**：直接对 `nav a button[data-testid$="-options"]` 调用 Playwright `click()` 容易触发 `<a>` 导航并超时。最稳做法是**拿到会话 ID 后用 `page.evaluate(() => document.querySelector("button[data-conversation-options-trigger='<id>']").click())`**，绕过 Playwright 的 actionability + 不会冒泡到链接。
 - **重命名兜底逻辑被移除**：旧版在 URL 匹配失败时按"第 N 条非置顶聊天"位序兜底，会**改错老会话标题**。新版严格按当前 URL 中的会话 ID 在侧栏轮询匹配（最长 30s），找不到就抛错。
 

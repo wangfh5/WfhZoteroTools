@@ -172,6 +172,249 @@ async function isVisible(locator, timeout = 1000) {
   }
 }
 
+function normalizeText(text) {
+  return (text || "").replace(/\s+/g, " ").trim();
+}
+
+async function getVisibleComposerPillText(page) {
+  const pill = await page.evaluate(() => {
+    const isVisible = (el) => {
+      const style = window.getComputedStyle(el);
+      return (
+        style.visibility !== "hidden" &&
+        style.display !== "none" &&
+        el.getClientRects().length > 0
+      );
+    };
+
+    const normalize = (text) => (text || "").replace(/\s+/g, " ").trim();
+    const buttons = Array.from(
+      document.querySelectorAll("button.__composer-pill"),
+    ).filter(isVisible);
+
+    const preferred = buttons.find((button) =>
+      /^(Instant|Medium|High|Extra High|Pro|GPT-5\.5|Thinking|Model)$/i.test(
+        normalize(button.innerText || button.textContent),
+      ),
+    );
+    const button = preferred || buttons[0];
+    if (!button) return null;
+
+    const text = normalize(button.innerText || button.textContent);
+    return { text };
+  });
+  return pill?.text || null;
+}
+
+async function clickVisibleComposerPill(page) {
+  const preferred = page
+    .locator("button.__composer-pill")
+    .filter({
+      hasText: /Instant|Medium|High|Extra High|Pro|GPT-5\.5|Thinking|Model/i,
+    })
+    .first();
+  const pill =
+    (await preferred.count()) > 0
+      ? preferred
+      : page.locator("button.__composer-pill").first();
+
+  await pill.waitFor({ state: "visible", timeout: 5000 });
+  const text = normalizeText(await pill.innerText());
+  await pill.click({ force: true, timeout: 5000 });
+  return text;
+}
+
+async function waitForVisibleComposerPill(page, timeout = 10000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    const text = await getVisibleComposerPillText(page);
+    if (text !== null) return text;
+    await page.waitForTimeout(200);
+  }
+  throw new Error(
+    "Timed out waiting for ChatGPT composer model/intelligence pill.",
+  );
+}
+
+async function clickVisibleChoice(
+  page,
+  {
+    exactText = null,
+    pattern = null,
+    roles = ["menuitemradio"],
+    rootSelector = null,
+    timeout = 3000,
+  },
+) {
+  const deadline = Date.now() + timeout;
+  const reSource = pattern?.source || null;
+  const reFlags = pattern?.flags || "";
+
+  while (Date.now() < deadline) {
+    const clicked = await page.evaluate(
+      ({ exactText, reSource, reFlags, roles, rootSelector }) => {
+        const isVisible = (el) => {
+          const style = window.getComputedStyle(el);
+          return (
+            style.visibility !== "hidden" &&
+            style.display !== "none" &&
+            el.getClientRects().length > 0
+          );
+        };
+
+        const normalize = (text) => (text || "").replace(/\s+/g, " ").trim();
+        const roleSelector = roles.map((role) => `[role="${role}"]`).join(",");
+        const roots = rootSelector
+          ? Array.from(document.querySelectorAll(rootSelector)).filter(
+              isVisible,
+            )
+          : [document];
+        const re = reSource ? new RegExp(reSource, reFlags) : null;
+
+        for (const root of roots) {
+          const items = Array.from(root.querySelectorAll(roleSelector));
+          for (const item of items) {
+            if (!isVisible(item)) continue;
+            const text = normalize(item.innerText || item.textContent);
+            const label = normalize(item.getAttribute("aria-label") || "");
+            const matches = exactText
+              ? text === exactText || label === exactText
+              : re && (re.test(text) || re.test(label));
+            if (matches) {
+              item.click();
+              return { text, label };
+            }
+          }
+        }
+        return null;
+      },
+      { exactText, reSource, reFlags, roles, rootSelector },
+    );
+
+    if (clicked) return clicked;
+    await page.waitForTimeout(200);
+  }
+
+  return null;
+}
+
+async function clickChatGPTUploadFilesMenuItem(page, timeout = 5000) {
+  const deadline = Date.now() + timeout;
+  const uploadPattern =
+    /^(Add photos? (&|and) files|Upload files?|上传.*文件|添加.*文件)$/i;
+
+  while (Date.now() < deadline) {
+    const clicked = await page.evaluate((reSource) => {
+      const re = new RegExp(reSource, "i");
+      const isVisible = (el) => {
+        const style = window.getComputedStyle(el);
+        return (
+          style.visibility !== "hidden" &&
+          style.display !== "none" &&
+          el.getClientRects().length > 0
+        );
+      };
+      const normalize = (text) => (text || "").replace(/\s+/g, " ").trim();
+      const candidates = document.querySelectorAll(
+        '[role="menuitem"], .__menu-item, [tabindex="0"]',
+      );
+
+      for (const item of candidates) {
+        if (!isVisible(item)) continue;
+        const text = normalize(item.innerText || item.textContent);
+        if (re.test(text)) {
+          item.click();
+          return text;
+        }
+      }
+      return null;
+    }, uploadPattern.source);
+
+    if (clicked) return clicked;
+    await page.waitForTimeout(200);
+  }
+
+  return null;
+}
+
+async function maybeSelectLegacyThinkingEffortHigh(page) {
+  const effortTrigger = page
+    .locator(
+      'button[aria-label="Open thinking effort menu"], button.__composer-pill-trigger',
+    )
+    .first();
+
+  if ((await effortTrigger.count()) === 0) return false;
+  if (!(await isVisible(effortTrigger, 1000))) return false;
+
+  await effortTrigger.click({ force: true, timeout: 5000 });
+  const picked = await clickVisibleChoice(page, {
+    exactText: "High",
+    roles: ["menuitemradio", "menuitem"],
+    timeout: 3000,
+  });
+  return Boolean(picked);
+}
+
+async function ensureChatGPTHighIntelligence(page) {
+  const target = "High";
+  const initialText = await waitForVisibleComposerPill(page, 10000);
+  console.log(`当前 ChatGPT 模型/智能等级: ${initialText}`);
+
+  if (normalizeText(initialText) === target) {
+    console.log(`ChatGPT 智能等级已是 ${target}，跳过设置。`);
+    return;
+  }
+
+  const openedText = await clickVisibleComposerPill(page);
+  if (!openedText) {
+    throw new Error("未找到 ChatGPT 模型/智能等级按钮。");
+  }
+
+  // 2026-06: ChatGPT merged the old Thinking model/effort controls into a
+  // single Intelligence dropdown in the composer.
+  const newUiPicked = await clickVisibleChoice(page, {
+    exactText: target,
+    roles: ["menuitemradio"],
+    rootSelector: '[data-testid="composer-intelligence-picker-content"]',
+    timeout: 5000,
+  });
+
+  if (newUiPicked) {
+    await page.waitForTimeout(600);
+    const finalText = await waitForVisibleComposerPill(page, 5000);
+    if (normalizeText(finalText) !== target) {
+      throw new Error(
+        `ChatGPT 智能等级校验失败：期望 ${target}，实际 ${finalText}`,
+      );
+    }
+    console.log(`✅ 已设置 ChatGPT 智能等级为 ${target}。`);
+    return;
+  }
+
+  // Legacy fallback (2026-04 UI): choose Thinking, then use the old effort
+  // trigger if it is present.
+  const legacyPicked = await clickVisibleChoice(page, {
+    pattern: /Thinking/i,
+    roles: ["menuitemradio", "menuitem"],
+    timeout: 3000,
+  });
+  if (legacyPicked) {
+    await page.waitForTimeout(800);
+    const effortPicked = await maybeSelectLegacyThinkingEffortHigh(page);
+    console.log(
+      effortPicked
+        ? "✅ 已设置旧版 ChatGPT Thinking + High effort。"
+        : "✅ 已设置旧版 ChatGPT Thinking；未发现单独的 High effort 菜单。",
+    );
+    return;
+  }
+
+  throw new Error(
+    "未能在 ChatGPT 菜单中找到新版 High 智能等级或旧版 Thinking 选项。",
+  );
+}
+
 /**
  * Check if a visible menuitem matching the regex exists in the DOM.
  * Uses evaluate() because Radix portal menuitems may not be visible to
@@ -356,41 +599,30 @@ async function chatWithChatGPT(
     console.log("正在访问 ChatGPT...");
     await page.goto("https://chatgpt.com/");
 
-    // 1. 切换模式为 Thinking
-    // 2026-04-27: 模型按钮已无 data-testid / aria-label, 锚点改为 CSS 类
-    // `__composer-pill`(模型 pill); 菜单项 role 由 menuitem 改为 menuitemradio.
-    console.log("设置模型为 Thinking...");
+    // 1. 设置 ChatGPT 智能等级为 High
     await page.waitForSelector('[data-testid="composer-plus-btn"]');
     // 等首页"Create an image / Write or edit / Look something up"建议块完成水合,
     // 否则 composer 区域仍在 layout shift, button.click 的 stable 检查会超时.
     await page
       .waitForLoadState("networkidle", { timeout: 10000 })
       .catch(() => {});
-    const modelBtn = page.locator("button.__composer-pill").first();
-    await modelBtn.waitFor({ state: "visible", timeout: 10000 });
-    const currentModelText = (await modelBtn.innerText()).trim();
-    console.log(`当前模型: ${currentModelText}`);
-    if (!/thinking/i.test(currentModelText)) {
-      await modelBtn.click({ force: true, timeout: 5000 });
-      const thinkingOption = page
-        .getByRole("menuitemradio", { name: /Thinking/i })
-        .first();
-      await thinkingOption.waitFor({ state: "visible", timeout: 5000 });
-      await thinkingOption.click({ force: true, timeout: 5000 });
-      await page.waitForTimeout(800);
-    }
+    await ensureChatGPTHighIntelligence(page);
 
     // 2. 上传文件
     console.log("正在上传文件...");
     await page
       .getByTestId("composer-plus-btn")
       .click({ force: true, timeout: 5000 });
-    const [fileChooser] = await Promise.all([
-      page.waitForEvent("filechooser"),
-      page
-        .getByRole("menuitem", { name: /Add photos & files/i })
-        .click({ force: true, timeout: 5000 }),
-    ]);
+    const fileChooserPromise = page.waitForEvent("filechooser", {
+      timeout: 10000,
+    });
+    const uploadMenuItem = await clickChatGPTUploadFilesMenuItem(page, 5000);
+    if (!uploadMenuItem) {
+      await fileChooserPromise.catch(() => {});
+      throw new Error("未找到 ChatGPT 上传菜单项 Add photos & files。");
+    }
+    console.log(`已点击上传菜单项: ${uploadMenuItem}`);
+    const fileChooser = await fileChooserPromise;
     await fileChooser.setFiles(absolutePdfPath);
     await page.waitForTimeout(3000);
 
