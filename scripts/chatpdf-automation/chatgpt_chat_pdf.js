@@ -176,6 +176,13 @@ function normalizeText(text) {
   return (text || "").replace(/\s+/g, " ").trim();
 }
 
+const CHATGPT_UPLOAD_FILES_MENU_TEXT_PATTERN =
+  /^(Add photos? (?:&|and) files|Upload files?|上传.*文件|添加.*文件)(?:$|\s)/i;
+
+function isChatGPTUploadFilesMenuText(text) {
+  return CHATGPT_UPLOAD_FILES_MENU_TEXT_PATTERN.test(normalizeText(text));
+}
+
 async function getVisibleComposerPillText(page) {
   const pill = await page.evaluate(() => {
     const isVisible = (el) => {
@@ -300,35 +307,39 @@ async function clickVisibleChoice(
 
 async function clickChatGPTUploadFilesMenuItem(page, timeout = 5000) {
   const deadline = Date.now() + timeout;
-  const uploadPattern =
-    /^(Add photos? (&|and) files|Upload files?|上传.*文件|添加.*文件)$/i;
 
   while (Date.now() < deadline) {
-    const clicked = await page.evaluate((reSource) => {
-      const re = new RegExp(reSource, "i");
-      const isVisible = (el) => {
-        const style = window.getComputedStyle(el);
-        return (
-          style.visibility !== "hidden" &&
-          style.display !== "none" &&
-          el.getClientRects().length > 0
+    const clicked = await page.evaluate(
+      ({ reSource, reFlags }) => {
+        const re = new RegExp(reSource, reFlags);
+        const isVisible = (el) => {
+          const style = window.getComputedStyle(el);
+          return (
+            style.visibility !== "hidden" &&
+            style.display !== "none" &&
+            el.getClientRects().length > 0
+          );
+        };
+        const normalize = (text) => (text || "").replace(/\s+/g, " ").trim();
+        const candidates = document.querySelectorAll(
+          '[role="menuitem"], .__menu-item, [tabindex="0"]',
         );
-      };
-      const normalize = (text) => (text || "").replace(/\s+/g, " ").trim();
-      const candidates = document.querySelectorAll(
-        '[role="menuitem"], .__menu-item, [tabindex="0"]',
-      );
 
-      for (const item of candidates) {
-        if (!isVisible(item)) continue;
-        const text = normalize(item.innerText || item.textContent);
-        if (re.test(text)) {
-          item.click();
-          return text;
+        for (const item of candidates) {
+          if (!isVisible(item)) continue;
+          const text = normalize(item.innerText || item.textContent);
+          if (re.test(text)) {
+            item.click();
+            return text;
+          }
         }
-      }
-      return null;
-    }, uploadPattern.source);
+        return null;
+      },
+      {
+        reSource: CHATGPT_UPLOAD_FILES_MENU_TEXT_PATTERN.source,
+        reFlags: CHATGPT_UPLOAD_FILES_MENU_TEXT_PATTERN.flags,
+      },
+    );
 
     if (clicked) return clicked;
     await page.waitForTimeout(200);
@@ -723,4 +734,4 @@ if (require.main === module) {
     .catch(() => disconnectAndExit(1));
 }
 
-module.exports = { chatWithChatGPT };
+module.exports = { chatWithChatGPT, isChatGPTUploadFilesMenuText };

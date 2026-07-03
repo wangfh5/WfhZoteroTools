@@ -149,7 +149,7 @@ SPA 网站（尤其是 Gemini、ChatGPT）会频繁更新 UI。当脚本失败�
 | 智能等级菜单   | `[data-testid="composer-intelligence-picker-content"] [role="menuitemradio"]`                                                                              | 点击 pill 后出现；菜单标题为 `Intelligence`；用精确文本匹配 `High`，否则 `/High/` 会误命中 `Extra High`                               |
 | GPT-5.5 子菜单 | `[data-testid="composer-intelligence-picker-content"] [role="menuitem"]`，文本 `GPT-5.5`                                                                   | 不是当前 chatpdf 工作流需要的等级；role 与上面的等级项不同                                                                            |
 | 上传菜单触发   | `[data-testid="composer-plus-btn"]`                                                                                                                        | aria-label="Add files and more"，CSS 类 `composer-btn`                                                                                |
-| 上传文件菜单项 | `.__menu-item` 精确文本 `Add photos & files`                                                                                                                | 2026-06 当前行无 `role=menuitem`；点击后仍通过 Playwright `filechooser` 事件设置 PDF                                                   |
+| 上传文件菜单项 | `.__menu-item` 文本前缀 `Add photos & files`                                                                                                                | 2026-07 当前行文本会拼上副标题，如 `Add photos & files Upload from computer`；不要做整行精确匹配。点击后仍通过 Playwright `filechooser` 事件设置 PDF |
 | 提示输入框     | `#prompt-textarea` (contenteditable div, ProseMirror)                                                                                                      | aria-label="Chat with ChatGPT"                                                                                                        |
 | 发送按钮       | `[data-testid="send-button"]`                                                                                                                              | aria-label 改为 "Send prompt"，type=submit；输入文本前 unmount                                                                        |
 | 侧栏会话操作   | `button[data-conversation-options-trigger="<chatId>"]`（**最稳**）/ `[data-testid="history-item-{N}-options"]` / `aria-label*="Open conversation options"` | `data-conversation-options-trigger` 直接绑会话 ID, 是定位"当前会话"options 按钮的金标准；位序 testid 在置顶项上为 `undefined-options` |
@@ -163,6 +163,7 @@ SPA 网站（尤其是 Gemini、ChatGPT）会频繁更新 UI。当脚本失败�
 - **等级项 role 仍是 `menuitemradio`，但必须精确匹配文本**：`High` 与 `Extra High` 同时存在，不能用 `/High/` 全局模糊匹配；脚本应限定在 `composer-intelligence-picker-content` 内并用 exact text `High`。
 - **旧版 `Thinking` 路径只作为 fallback**：如果页面回滚到 2026-04 UI，再尝试 `getByRole('menuitemradio', { name: /Thinking/i })` 和旧的 `Open thinking effort menu`；当前 2026-06 UI 下不应先等待 `Thinking`，否则会卡在选择思考强度步骤。
 - **上传菜单项移除了 menuitem role**：`Add photos & files` 视觉上仍在 `composer-plus-btn` 菜单里，但真实 DOM 是 `div.__menu-item` + `tabindex=0`，不是 `role=menuitem`。不要再使用 `getByRole('menuitem', { name: /Add photos & files/i })`。
+- **上传菜单项文本包含副标题（2026-07）**：当前可见文本是 `Add photos & files Upload from computer`。脚本不能用 `^Add photos & files$` 这类整行精确匹配，应该匹配标题前缀，并排除 `Create image`、`Deep research` 等其他工具项。
 
 ### 历史变化（对比 2026-04-01）
 
